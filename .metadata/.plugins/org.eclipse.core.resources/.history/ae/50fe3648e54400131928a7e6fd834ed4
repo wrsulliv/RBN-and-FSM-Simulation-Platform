@@ -1,0 +1,10 @@
+
+public class State {
+
+	public int output = 0;
+	public void State(int output)
+	{
+		this.output = output;
+		
+	}
+}

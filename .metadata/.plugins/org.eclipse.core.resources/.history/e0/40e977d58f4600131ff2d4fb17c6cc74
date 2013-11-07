@@ -1,0 +1,63 @@
+
+public class RBN_FSM_Helper {
+
+	//  Return a boolean array of the current state of the RBN (the states of the reservoir nodes from 0 to N-1)
+	public static int[] getFSMStateFromRBN(RBN rbn)
+	{
+		int[] boolStateArray = new int[rbn.nodes.size() - 2];
+		for(int i = 2; i < rbn.nodes.size(); i++) // 2 of the nodes are for input and output
+		{
+			boolStateArray[i] = rbn.nodes.get(i).currentState;
+			
+		}
+		
+		return boolStateArray;
+		
+	}
+	
+	public static FSM generateFSMFromRBN(RBN rbn)
+	{	
+		//  First, get the number of nodes in the RBN
+		int numNodes = rbn.nodes.size() - 2; 
+		
+		//  The number of states in the FSM is 2^(# of nodes in the RBN)
+		//  This means the states in the FSM range from when the nodes in the RBN are all 0s to all 1s
+		int numStates = 2^numNodes;
+		
+		//  Create the FSM Object, this will add the states to the FSM
+		FSM fsm = new FSM(numStates, 1);
+		
+		//  Start looping through each state and testing what the next state is given a 0 or 1 input
+		for(int i = 0; i < numStates; i++)
+		{
+			//  Test input = 0
+			rbn.reinitialize(i, 0);
+			rbn.nextState(0);
+			
+			
+			//  Test input = 1
+		}
+		
+		
+		
+	}
+	
+	//  Generate a decimal number which represents the current FSM state of the RBN network
+	private static int getCurrentState(RBN rbn)
+	{
+		
+		//  Make a boolean array to hold the RBN node values
+		int[] stateArray = new int[rbn.nodes.size() - 2];
+		
+		//  Loop through each node and record in the boolean array
+		for(int i = 2; i < rbn.nodes.size(); i++) // 2 of the nodes are for input and output
+		{
+			stateArray[i - 2] = rbn.nodes.get(i).currentState;
+		}
+		
+		
+		int decimalState = MathHelper.convertBinaryArrayToDec(stateArray);
+		
+	}
+	
+}

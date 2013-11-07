@@ -1,0 +1,34 @@
+import java.util.ArrayList;
+
+
+public class Node {
+
+	int Ki;
+	public ArrayList<Integer> inputNodes; 
+	public Node(int Ki)
+	{
+		this.Ki = Ki;
+	}
+	
+	public boolean hasInputNode(int inputNodeIndex)
+	{
+		for(int i = 0; i < inputNodes.size(); i++)
+		{
+			
+			if(inputNodes.get(i) == inputNodeIndex)
+			{
+				return true;
+				
+			}
+		}
+		
+		return false;
+		
+	}
+	
+	public void addInputNode(int inputNodeIndex)
+	{
+		
+		inputNodes.add(inputNodeIndex);
+	}
+}

@@ -1,0 +1,9 @@
+
+public class RBN_FSM_Helper {
+
+	public static getFSMStateFromRBN(RBN rbn)
+	{
+		
+		
+	}
+}

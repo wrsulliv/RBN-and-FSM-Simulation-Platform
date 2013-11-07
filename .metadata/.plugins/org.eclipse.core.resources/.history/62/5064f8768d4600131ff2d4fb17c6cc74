@@ -1,0 +1,25 @@
+
+public class RBN_FSM_Helper {
+
+	//  Return a boolean array of the current state of the RBN (the states of the reservoir nodes from 0 to N-1)
+	public static int[] getFSMStateFromRBN(RBN rbn)
+	{
+		int[] boolStateArray = new int[rbn.nodes.size() - 2];
+		for(int i = 2; i < rbn.nodes.size() - 2; i++) // 2 of the nodes are for input and output
+		{
+			boolStateArray[i] = rbn.nodes.get(i).currentState;
+			
+		}
+		
+		return boolStateArray;
+		
+	}
+	
+	public static FSM generateFSMFromRBN(RBN rbn)
+	{
+		int numStates = rbn.nodes.size() - 2; //  States are only internal reservoir nodes
+		
+		
+		
+	}
+}

@@ -1,0 +1,12 @@
+
+public class State {
+
+
+	public int[] nextStateArray; // The next state given that the index is the input to the current state
+	public State(int numInputs)
+	{
+		nextStateArray = new int[numInputs];
+		
+	}
+	
+}

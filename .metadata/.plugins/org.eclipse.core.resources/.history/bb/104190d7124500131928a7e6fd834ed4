@@ -1,0 +1,129 @@
+import java.util.ArrayList;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+
+public class RBN {
+
+	int N; //  The number of nodes
+	int maxKi; // Max number of connections to internal nodes
+	int L; // Number of input nodes
+	int K_avg; // Average connectivity
+	ArrayList<Node> nodes;
+	ArrayList<Integer> inputConnections;
+	int total_connections;
+	public RBN(int K_avg, int N, int maxKi, int L)
+	{
+		this.N = N;
+		this.L = L;
+		this.maxKi = maxKi;
+		this.nodes = new ArrayList<Node>();
+		this.inputConnections = new ArrayList<Integer>();
+		this.total_connections = K_avg * N;
+		generateNodes();
+		connectNodes();
+		setupInputConnections();
+	}
+	
+	//  Give L input connections randomly to the reservoir nodes
+	private void setupInputConnections()
+	{
+		for(int i = 0; i < L; i++)
+		{
+			int randomNode = rndGenerator(N - 1) + 2;
+			
+			//  If the input node is already there then try again
+			if(nodes.get(randomNode).hasInputNode(0))
+			{
+				i--;
+			}
+			else
+			{
+				nodes.get(randomNode).addInputNode(0);
+			}
+		}
+	}
+	
+	//  Create an input, and N nodes with random Ki values
+	private void generateNodes()
+	{
+		//  Generate input and output nodes, input = index 0, output = index 1
+		nodes.add(new Node(0));
+		nodes.add(new Node(0));
+		 
+		// Generate N different nodes
+		for (int i = 0; i < N; i++)
+		{
+			//  Choose Ki for the node
+			int ki = rndGenerator(this.maxKi);
+			Node n = new Node(ki);
+			nodes.add(n);
+		}
+		
+	}
+	
+	//  Connect all nodes within the reservoir based on their Ki values
+	private void connectNodes()
+	{
+		int remainingConnections = this.total_connections;
+		int nodeIndex = 2; // Start at 2 because of the input and output nodes
+		while(remainingConnections > 0)
+		{
+			nodeIndex += 1;
+			remainingConnections -= 1;
+			
+			int inputNodeIndex = rndGenerator(N - 1) + 2; // Subtract 1 since we start at 0 index, add 2 because of the input / output nodes
+			//  As long as the connection doesn't already exist, connect the node
+			if (!(nodes.get((nodeIndex % this.N) + 2).hasInputNode(inputNodeIndex)))
+			{
+				nodes.get((nodeIndex % this.N) + 2).addInputNode(inputNodeIndex);	
+			}
+			else
+			{
+				remainingConnections += 1;  // Try a different connection with this same node because this one already existed
+				nodeIndex -= 1;
+			}	
+		}
+	}
+	
+	//  Write network to a file
+	public void writeToFile(String fileName)
+	{
+		PrintWriter writer;
+		try {
+			writer = new PrintWriter(fileName, "UTF-8");
+			for(int i = 0; i < N + 2; i++) // N+2 because of the input/output nodes
+			{
+				writer.print(Integer.toString(i) + ",");
+
+				for(int j = 0; j < nodes.get(i).inputNodes.size(); j++)
+				{
+					writer.print(Integer.toString(nodes.get(i).inputNodes.get(j)) + ",");
+				}
+				writer.print("\n");
+			}
+			
+			writer.close();
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	//  Generate a random number between 0 and the maxValue
+	private int rndGenerator(int maxValue)
+	{
+		
+		return (int)(Math.random() * (double)maxValue);
+	}
+	
+	//  Increment all nodes to the next state
+	public void nextState()
+	{
+		
+		
+	}
+}

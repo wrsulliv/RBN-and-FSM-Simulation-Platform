@@ -1,0 +1,17 @@
+
+
+public class runner {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		
+		//  Create the RBN with N, Ki, and L
+		RBN rbn = new RBN(2, 4, 2);
+		rbn.writeToFile("/Users/willimac/Desktop/test.csv");
+	}
+
+}

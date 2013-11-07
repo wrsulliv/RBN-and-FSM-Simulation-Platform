@@ -1,0 +1,12 @@
+import java.util.ArrayList;
+public class FSM {
+
+	ArrayList<State> states;
+	int numStates;
+	public FSM(int numStates)
+	{
+		this.states = new ArrayList<State>();
+		this.numStates = numStates;
+		
+	}
+}

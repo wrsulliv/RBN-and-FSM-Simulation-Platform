@@ -1,0 +1,220 @@
+import java.util.ArrayList;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+
+public class RBN {
+
+	int N; //  The number of nodes
+	int L; // Number of input nodes
+	int K_avg; // Average connectivity
+	ArrayList<Node> nodes;
+	ArrayList<Integer> inputConnections;
+	int total_connections;
+	public RBN(int K_avg, int N, int L)
+	{
+		this.N = N;
+		this.L = L;
+		this.nodes = new ArrayList<Node>();
+		this.inputConnections = new ArrayList<Integer>();
+		this.total_connections = K_avg * N;
+		//int[] binArray = MathHelper.convertDecToBinArray(13, 10); // TESTING TODO:  make a test suite
+		//int dec = MathHelper.convertBinaryArrayToDec(binArray); // TESTING TODO:  make a test suite
+		generateNodes();
+		connectNodes();
+		setupInputConnections();
+		setupNodeLogicFunctions();
+int h = 0;
+		
+	}
+	
+	//  Setup the logic functions
+	private void setupNodeLogicFunctions()
+	{
+		for(int i = 2; i < N + 2; i++)
+		{
+			int input_node_count = this.nodes.get(i).inputNodes.size();
+			int num_input_combinations = (int)Math.pow(2,input_node_count);
+			int num_functions = (int)Math.pow(2, (num_input_combinations));
+			int rnd_function = this.rndGenerator(num_functions - 1); // Subtract 1 because all 0s counts as a function
+			int[] functArray = MathHelper.convertDecToBinArray(rnd_function, num_input_combinations);
+			this.nodes.get(i).logicFunction = functArray;
+			
+		}
+		//this.logicFunction = new Integer[];
+	}
+
+	
+	//  Give L input connections randomly to the reservoir nodes
+	private void setupInputConnections()
+	{
+		for(int i = 0; i < L; i++)
+		{
+			int randomNode = rndGenerator(N - 1) + 2;
+			
+			//  If the input node is already there then try again
+			if(nodes.get(randomNode).hasInputNode(0))
+			{
+				i--;
+			}
+			else
+			{
+				nodes.get(randomNode).addInputNode(0);
+			}
+		}
+	}
+	
+	//  Create an input, and N nodes with random Ki values
+	private void generateNodes()
+	{
+		//  Generate input and output nodes, input = index 0, output = index 1
+		nodes.add(new Node());
+		nodes.add(new Node());
+		 
+		// Generate N different nodes
+		for (int i = 0; i < N; i++)
+		{
+			Node n = new Node();
+			nodes.add(n);
+		}
+		
+	}
+	
+	//  Connect all nodes within the reservoir based on their Ki values
+	private void connectNodes()
+	{
+		int remainingConnections = this.total_connections;
+		int nodeIndex = 2; // Start at 2 because of the input and output nodes
+		while(remainingConnections > 0)
+		{
+			nodeIndex += 1;
+			remainingConnections -= 1;
+			
+			int inputNodeIndex = rndGenerator(N - 1) + 2; // Subtract 1 since we start at 0 index, add 2 because of the input / output nodes
+			//  As long as the connection doesn't already exist, connect the node
+			if (!(nodes.get((nodeIndex % this.N) + 2).hasInputNode(inputNodeIndex)))
+			{
+				nodes.get((nodeIndex % this.N) + 2).addInputNode(inputNodeIndex);	
+			}
+			else
+			{
+				remainingConnections += 1;  // Try a different connection with this same node because this one already existed
+				nodeIndex -= 1;
+			}	
+		}
+	}
+	
+	//  Gets the current state of the network based only on the node values in the reservoir
+	public int generateCurrentStateOutput()
+	{
+		return -1; // TODO:  Actually make this work!
+		
+	}
+	//  Write network to a file
+	public void writeToFile(String fileName)
+	{
+		PrintWriter writer;
+		try {
+			writer = new PrintWriter(fileName, "UTF-8");
+			for(int i = 0; i < N + 2; i++) // N+2 because of the input/output nodes
+			{
+				writer.print(Integer.toString(i) + ",");
+
+				for(int j = 0; j < nodes.get(i).inputNodes.size(); j++)
+				{
+					writer.print(Integer.toString(nodes.get(i).inputNodes.get(j)) + ",");
+				}
+				
+				//  Write the binary function to the csv file if the node is part of the reservoir
+				if(i >= 2)
+				{
+					int[] binFunctArray = nodes.get(i).logicFunction;
+					String binaryFunctString = "";
+					for(int j = binFunctArray.length - 1; j >= 0; j--) //  Start at the upper bits and keep concatenating until the binary string is made
+					{
+						binaryFunctString = binaryFunctString + binFunctArray[j];
+						
+					}
+					writer.print(binaryFunctString);
+				}
+				writer.print("\n");
+			}
+			
+			writer.close();
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	//  Generate a random number between 0 and the maxValue
+	private int rndGenerator(int maxValue)
+	{
+		
+		return (int)(Math.random() * (double)maxValue);
+	}
+	
+	//  Reinitialize the network given a decimal number which also acts as a binaryArray
+	public void reinitialize(int decimalState, int input)
+	{
+		int[] stateArray = MathHelper.convertDecToBinArray(decimalState, N);
+		for(int i = 2; i < N + 2; i++)
+		{
+			//  Reset each state based on the decimal number sent in
+			this.nodes.get(i).currentState = stateArray[i - 2]; // Subtract 2 because of the input and output noes
+			
+			
+		}
+		
+		//  Set the input to the desired input.  
+		this.nodes.get(0).currentState = input;
+		
+		//  When the nextState function is called, then the output and states will be based on this setup
+		
+	}
+	
+	//  Increment all nodes to the next state
+	public void nextState(int input)
+	{
+		//  For each node in the network
+		for(int i = 2; i < N + 2; i++)
+		{
+			
+			//  Create a boolean array of the input values
+			int[] boolInputArray = new int[this.nodes.get(i).inputNodes.size()];
+			
+			//  then, loop through each node in the input list and add its state value to the input value array
+			for(int j = 0; j < this.nodes.get(i).inputNodes.size(); j++)
+			{
+				boolInputArray[j] = nodes.get(nodes.get(i).inputNodes.get(j)).currentState;
+			}
+			
+			//  Determine the nextState of the node by using the input combinations, and the selected logic function
+			
+			//  Start by getting the row of the input combination within the logic function (Imagine a table)
+			int inputRow = MathHelper.convertBinaryArrayToDec(boolInputArray);
+			int nextState = nodes.get(i).logicFunction[inputRow];
+			nodes.get(i).nextState = nextState;
+		}
+		
+		//  Set the new input state
+		this.nodes.get(0).nextState = input;
+		//  Set the new output state
+		this.nodes.get(1).nextState = this.generateCurrentStateOutput();
+		
+		//  Commit the new input/output states
+		this.nodes.get(0).commitNextState();
+		this.nodes.get(1).commitNextState();
+		
+		//  Loop through all internal nodes and commit the new state
+		for(int i = 2; i < N + 2; i++)
+		{
+			nodes.get(i).commitNextState();
+		}
+		
+	}
+}

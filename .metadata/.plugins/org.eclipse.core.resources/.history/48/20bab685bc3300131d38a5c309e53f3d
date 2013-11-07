@@ -1,0 +1,13 @@
+import java.util.ArrayList;
+
+
+public class Node {
+
+	int Ki;
+	ArrayList<Integer> inputNodes; 
+	public Node(int Ki, ArrayList<Integer> inputNodes)
+	{
+		this.Ki = Ki;
+		this.inputNodes = inputNodes;
+	}
+}

@@ -1,0 +1,77 @@
+import java.util.ArrayList;
+
+
+public class RBN {
+
+	int N;
+	int maxKi;
+	int L;
+	ArrayList<Node> nodes;
+	ArrayList<Integer> inputConnections;
+	public RBN(int N, int maxKi, int L)
+	{
+		this.N = N;
+		this.L = L;
+		this.maxKi = maxKi;
+		generateNodes();
+		connectNodes();
+		setupInputConnections();
+	}
+	
+	private void setupInputConnections()
+	{
+		for(int i = 0; i < L; i++)
+		{
+			int randomNode = rndGenerator(N);
+			
+			//  If the flag is already set then try a different node.
+			if(nodes.get(randomNode).takeFromInputLayer)
+			{
+				i--;
+			}
+			else
+			{
+				nodes.get(i).takeFromInputLayer = true;
+			}
+		}
+	}
+	private void generateNodes()
+	{
+		
+		for (int i = 0; i < N; i++)
+		{
+			//  Choose Ki for the node
+			int ki = rndGenerator(this.maxKi);
+			Node n = new Node(ki);
+			nodes.add(n);
+		}
+		
+	}
+	
+	private void connectNodes()
+	{
+		for(int i = 0; i < N; i++)
+		{
+			for(int j = 0; j < nodes.get(i).Ki; j++)
+			{
+				int inputNodeIndex = rndGenerator(N);
+				//  As long as the connection doesn't already exist, connect the node
+				if (!(nodes.get(i).hasInputNode(inputNodeIndex)))
+				{
+					nodes.get(i).addInputNode(inputNodeIndex);	
+				}
+				else
+				{
+					j--;
+				}
+			}
+		}
+		
+	}
+	
+	public int rndGenerator(int maxValue)
+	{
+		
+		return (int)(Math.random() * (double)maxValue);
+	}
+}

@@ -1,0 +1,23 @@
+
+
+public class runner {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		
+		//  Create the RBN with N, Ki, and L
+		//RBN rbn = new RBN(2, 3, 2);
+		//rbn.writeToFile("/Users/willimac/Desktop/rbn_test.csv");
+		
+		//FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+		//fsm.writeToFile("/Users/willimac/Desktop/fsm_test.csv");
+		
+		// Test the Conversion Tool
+		RBN rbn = new RBN("/Users/willimac/Desktop/rbn_test.csv");
+	}
+
+}
