@@ -1,0 +1,34 @@
+
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+
+
+public class HomeWindow {
+
+	public String workspacePath;
+	private JFrame frame;
+
+	/**
+	 * Create the application.
+	 */
+	public HomeWindow(String workspacePath) {
+		this.workspacePath = workspacePath;
+		initialize();
+	}
+
+	/**
+	 * Initialize the contents of the frame.
+	 */
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 451, 411);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+		
+		JLabel lblNewLabel = new JLabel("Welcome to ");
+		lblNewLabel.setBounds(183, 39, 61, 16);
+		frame.getContentPane().add(lblNewLabel);
+		frame.setVisible(true);
+	}
+}

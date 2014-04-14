@@ -1,0 +1,202 @@
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Random;
+
+
+//  This class is used to simulate many different variables against eachother
+//  Since this is strictly the RBN batch simulator, it requires N, k_avg, and L as a minimum.
+public class BatchSimulator 
+{
+
+	
+	//  Input a list of constant variables for the test, and a list of sweep variables.
+	//  This list of sweep variables is processed as follows:
+	//  Index 0:  X-Axis
+	//  Index 1:  Different Line
+	//  Index 2:  Different Chart
+	ArrayList<SweepingDiscreteVariable> sweepingVariables;
+	ArrayList<ConstantDiscreteVariable> constantVariables;
+	DependentVariableType dependentVariableType;
+	int[] variableValues; //  Will hold the actual variable values.  Remember to update whenever adding a new variable!
+	String csvFilePath = "";
+	PrintWriter writer;
+	CustomRandom randomGenerator; //  Used in simulating the RBNs
+	StatisticMachine statMachine; //  Used for finding statistics which certain DiscreteVariables may choose to look at.
+	
+	public BatchSimulator(ArrayList<SweepingDiscreteVariable> sweepingVariables, ArrayList<ConstantDiscreteVariable> constantVariables, DependentVariableType dependentVariableType, String csvFilePath, CustomRandom randomGenerator)
+	{
+		this.sweepingVariables = sweepingVariables;
+		this.constantVariables = constantVariables;
+		this.dependentVariableType = dependentVariableType;
+		variableValues = new int[4];
+		this.csvFilePath = csvFilePath;
+		this.randomGenerator = randomGenerator;
+		statMachine = new StatisticMachine();
+		
+		try {
+			
+			writer = new PrintWriter(this.csvFilePath, "UTF-8");
+		
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		
+	}
+	
+	//  Generates a CSV with the given variable configuration
+	public void generateCSV()
+	{
+		//  First set everything that's in the constant variables
+		for(int i = 0; i < constantVariables.size(); i++)
+		{
+			this.variableValues[constantVariables.get(i).type.id] = constantVariables.get(i).value;
+		}
+		
+		//  Start the actual simulations and keep calling recursively.  
+		//  The dependent variables will change the type of simulations.
+		loopThroughVariables(sweepingVariables, 0, dependentVariableType);
+		
+		//  Close the writer 
+		writer.close();
+	}
+
+	
+
+	//  Loop through the variables of the simulations.  The levelIndex is the index in the list of the variable at a 
+	//  certain level of the loop 
+private void loopThroughVariables(ArrayList<SweepingDiscreteVariable> sweepingVariables, int levelIndex, DependentVariableType dependentVariableType)
+{
+	SweepingDiscreteVariable variable = sweepingVariables.get(levelIndex);
+	int endValue = variable.end;
+	int variableTypeID = variable.type.id;
+	int lastVariableIndex = sweepingVariables.size() - 1;
+
+	//  Loop through the variables until all have been simulated
+	for(int i = variable.start; i <= endValue; i=variable.next(i))
+	{
+		variableValues[variableTypeID] = i;
+		if(levelIndex == lastVariableIndex)
+		{
+			
+			//  If the last variable is an averager, then use the averager and only write to the file at the end
+			if(variable.type == DiscreteVariableType.Averager)
+			{
+				//  We want to average the results of i tests...
+				for(int j = 0; j < i; j++)
+				{
+					
+					//  Calculate the simulation result
+					performSimulation(dependentVariableType);
+				
+					
+				}
+
+
+			}
+			else if(variable.type == DiscreteVariableType.Averager)
+			{
+				//  Only use irreducible networks
+				for(int j = 0; j < i; j++)
+				{
+					
+					//  Calculate the simulation result
+					performSimulation(dependentVariableType);
+					
+					
+				}
+				
+			}
+			else
+			{
+				//  Calculate the simulation result
+				performSimulation(dependentVariableType);
+				
+			}
+			
+			//  Write the average to the file
+			writeResultSetToFile(statMachine.getAverage());
+			statMachine.clear();
+
+			
+		}
+		else
+		{
+			//  Continue the recursion
+			loopThroughVariables(sweepingVariables, levelIndex + 1, dependentVariableType);
+			
+		}
+	}
+	
+}
+
+private void writeResultSetToFile(double result)
+{		
+		for(int i = 0; i < this.variableValues.length; i++)
+		{
+			
+			writer.print(variableValues[i] + ",");
+		}
+		
+		writer.println(Double.toString(result));
+		
+
+			
+}
+private void performSimulation(DependentVariableType dependentVariableType)
+{
+	//  Setup required parameters
+	int N = this.variableValues[DiscreteVariableType.N.id];
+	int K_avg = this.variableValues[DiscreteVariableType.K_avg.id];
+	int L = this.variableValues[DiscreteVariableType.L.id];
+	
+	//  Run the simulator
+	RBN rbn = new RBN(K_avg, N, L, randomGenerator);
+	
+	switch(dependentVariableType)
+	{
+		case irreducibilityProbability:
+			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm())
+			//  Perform calculations because there are no other variables
+			{
+				statMachine.add(1);
+			}
+			else
+			{
+				statMachine.add(0);
+			}
+			return;
+		case computationalCapability:
+			return;
+		case dissipationBound:
+			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm())
+			{
+				statMachine.add(RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(75, 0.5f));
+				return;
+			}
+
+		default:
+			return;
+	
+	}
+}
+}
+
+//  Enum for the variableValues array
+
+
+
+
+
+enum DependentVariableType
+{
+	irreducibilityProbability, computationalCapability, dissipationBound, energyPerUnitCapability
+
+}

@@ -1,0 +1,89 @@
+import java.io.Console;
+import java.util.Arrays;
+
+
+public class TestSuite {
+
+	
+	public static void runTests()
+	{
+
+		
+		//  Open the RBN Test File
+		RBN rbn = new RBN("/Users/willimac/Documents/College/Senior!/DH Research/Test Files/rbn_test_updated.csv");
+		
+		int[] inputString = MathHelper.convertStringToIntArray("0011");
+		int[] inputString2 = MathHelper.convertStringToIntArray("0101");
+		
+		//  Test Hamming Distance
+		int num;
+		try {
+			
+			num = RBN.getHammingDistance(inputString, inputString2);
+			if(num == 2)
+			{
+				
+				System.out.println("PASS: Hamming Distance");
+			}
+			else
+			{
+				System.out.println("FAIL: Hamming Distance");
+				
+			}
+		} catch (HammingNodeCountException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+		
+		//  Test the network simulator with the first input string
+		rbn.RunSimulation(inputString, "/Users/willimac/Desktop/dummy.csv", true); //  er stands for Expected Result
+		int[] erFirstInputString = new int[3];
+		erFirstInputString[0] = 1;
+		erFirstInputString[1] = 1;
+		erFirstInputString[2] = 0;
+		int[] actualResult = rbn.getInternalState();
+		if(Arrays.equals(actualResult, erFirstInputString))
+		{
+			
+			System.out.println("PASS:  Input String 1");
+		}
+		else
+		{
+			System.out.println("FAIL: Input String 1");
+			
+		}
+		
+		
+		//  Test the network simulator with the second input string
+		rbn.RunSimulation(inputString2, "/Users/willimac/Desktop/dummy.csv", true); //  er stands for Expected Result
+		int[] erSecondInputString = new int[3];
+		erFirstInputString[0] = 0;
+		erFirstInputString[1] = 1;
+		erFirstInputString[2] = 0;
+		actualResult = rbn.getInternalState();
+		if(Arrays.equals(actualResult, erFirstInputString))
+		{
+			
+			System.out.println("PASS:  Input String 2");
+		}
+		else
+		{
+			System.out.println("FAIL: Input String 2");
+			
+		}
+		
+		//  Test Perturbance Spreading
+		float test = RBN.calculatePerturbanceSpreading(rbn, inputString, inputString2);
+		if(test == 1)
+		{
+			
+			System.out.println("PASS: Perturbance Spreading");
+		}
+		else
+		{
+			System.out.println("FAIL: Perturbance Spreading");
+			
+		}
+	}
+}

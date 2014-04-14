@@ -1,0 +1,195 @@
+import java.awt.EventQueue;
+
+import javax.imageio.ImageIO;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+import java.awt.Color;
+
+import javax.swing.JLabel;
+
+import java.awt.Font;
+
+import javax.swing.JTextArea;
+import javax.swing.JButton;
+
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+
+
+public class BatchSimulator {
+
+	private JFrame frame;
+
+
+
+	/**
+	 * Create the application.
+	 */
+	public BatchSimulator() {
+		initialize();
+	}
+
+	/**
+	 * Initialize the contents of the frame.
+	 */
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 527, 359);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+		
+		JPanel panel = new JPanel();
+		panel.setBackground(Color.WHITE);
+		panel.setBounds(0, 0, 527, 94);
+		frame.getContentPane().add(panel);
+		panel.setLayout(null);
+		
+		JLabel lblBatchSimulator = new JLabel("Batch Simulator:");
+		lblBatchSimulator.setFont(new Font("Lucida Grande", Font.BOLD, 13));
+		lblBatchSimulator.setBounds(6, 6, 147, 16);
+		panel.add(lblBatchSimulator);
+		
+		JTextArea txtrUseThisDialog = new JTextArea();
+		txtrUseThisDialog.setWrapStyleWord(true);
+		txtrUseThisDialog.setLineWrap(true);
+		txtrUseThisDialog.setText("Use this dialog to perform multiple tests and collect lots of data at one time.  \n");
+		txtrUseThisDialog.setBounds(29, 34, 466, 47);
+		panel.add(txtrUseThisDialog);
+		
+		JButton btnNewButton = new JButton("Simulate {L, T, \u2206}");
+		btnNewButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+				int K_avg = 2;
+				int N = 200;
+				int L = 50;
+				float chanceOf1 = 0.5f;
+				int tau = 2;
+				ShannonSource ss = new ShannonSource(10, chanceOf1);
+				//RBN rbn =  new RBN(K_avg, N, L);
+				
+				ArrayList<DataPoint3D> dataPoints = new ArrayList<DataPoint3D>();
+				
+				for(tau = 1; tau <= 8; tau++)
+				{
+					for (L = 1; L <= 100; L++)
+					{
+						float ccTotal = 0;
+						for(int i = 0; i < 3; i++)
+						{
+		
+							RBN rbn =  new RBN(K_avg, N, L);
+							int[] inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
+							float computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
+							ccTotal += computationalCapability;
+						}
+						
+						DataPoint3D dp3d = new DataPoint3D(tau, L, ccTotal / 3);
+						dataPoints.add(dp3d);
+					}
+				}
+				
+				
+				
+	/*			PrintWriter writer;
+				try {
+						writer = new PrintWriter(new FileWriter("/Users/willimac/Desktop/batch.csv", true));
+						writer.print("L,");
+						for(int i = 0; i < LValues.size(); i++) 
+						{
+							writer.print(LValues.get(i) + ",");
+						}
+						writer.print("\n");
+						
+						writer.print("T,");
+						for(int i = 0; i < TauValues.size(); i++) 
+						{
+							writer.print(TauValues.get(i) + ",");
+						}
+						writer.print("\n");
+						
+						writer.print("C,");
+						for(int i = 0; i < CompValues.size(); i++)
+						{
+							writer.print(CompValues.get(i) + ",");
+						}
+						writer.print("\n");
+						
+						writer.close();
+						
+					} catch (IOException ex) {
+						// TODO Auto-generated catch block
+						ex.printStackTrace();
+					}*/
+				
+				generateHeatMapFromDataPoint3DList(dataPoints, tau, L, 1);
+			}
+		});
+		btnNewButton.setBounds(10, 106, 168, 29);
+		frame.getContentPane().add(btnNewButton);
+		frame.setVisible(true);
+	}
+	
+	//  The datapoints must be from least x/y to greatest x/y
+	public BufferedImage generateHeatMapFromDataPoint3DList(ArrayList<DataPoint3D> dataPointList, int xRange, int yRange, int heatRange)
+	{
+		
+		//  Create the actual image object.  The number of rows is 1 more than the number of inputs because of the initial state.
+		BufferedImage bf = new BufferedImage(xRange, yRange, BufferedImage.TYPE_INT_RGB);
+		
+		//  Loop through each input string item and determine the next state.
+		for(int i = 0; i < dataPointList.size(); i++)
+		{
+			
+			//  TODO:  Prove that this is true.
+			//  As of right now I believe computational capability can be lower than 0... So, make sure it doesn't go below zero..
+			Color heatColor;	
+			if (dataPointList.get(i).heatPoint >= 0) 
+				{
+					 heatColor = rgb(0, 0.3f, dataPointList.get(i).heatPoint);
+				}
+				else if(dataPointList.get(i).heatPoint >=.3f)
+				{
+					heatColor = rgb(0, 0.3f, .3f);
+				}
+				else
+				{
+					heatColor = rgb(0, 0.3f, 0);
+				}
+				bf.setRGB(dataPointList.get(i).x, dataPointList.get(i).y, heatColor.getRGB()); 
+
+			
+		}
+		
+		//  Save the bitmap
+		File outputFile = new File("/Users/willimac/Desktop/heatMap_small.bmp");
+		try {
+			ImageIO.write(bf, "bmp", outputFile);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return bf;
+		
+	}
+	public Color rgb(float minimum, float maximum, float value)
+	{
+	    
+	    float halfmax = ((float)minimum + (float)maximum) / 2;
+	    int b = (int)(Math.max(0, 255*(1 - (float)(value)/halfmax)));
+	    int r = (int)(Math.max(0, 255*((float)(value)/halfmax - 1)));
+	    int g = 255 - b - r;
+	    
+	    Color color = new Color(r,g,b);
+	    return color;
+	}
+
+}

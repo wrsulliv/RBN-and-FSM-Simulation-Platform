@@ -1,0 +1,152 @@
+import java.awt.EventQueue;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+import java.awt.Color;
+
+import javax.swing.JLabel;
+
+import java.awt.Font;
+
+import javax.swing.JTextArea;
+import javax.swing.JButton;
+
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+
+
+public class BatchSimulator {
+
+	private JFrame frame;
+
+
+
+	/**
+	 * Create the application.
+	 */
+	public BatchSimulator() {
+		initialize();
+	}
+
+	/**
+	 * Initialize the contents of the frame.
+	 */
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 527, 359);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+		
+		JPanel panel = new JPanel();
+		panel.setBackground(Color.WHITE);
+		panel.setBounds(0, 0, 527, 94);
+		frame.getContentPane().add(panel);
+		panel.setLayout(null);
+		
+		JLabel lblBatchSimulator = new JLabel("Batch Simulator:");
+		lblBatchSimulator.setFont(new Font("Lucida Grande", Font.BOLD, 13));
+		lblBatchSimulator.setBounds(6, 6, 147, 16);
+		panel.add(lblBatchSimulator);
+		
+		JTextArea txtrUseThisDialog = new JTextArea();
+		txtrUseThisDialog.setWrapStyleWord(true);
+		txtrUseThisDialog.setLineWrap(true);
+		txtrUseThisDialog.setText("Use this dialog to perform multiple tests and collect lots of data at one time.  \n");
+		txtrUseThisDialog.setBounds(29, 34, 466, 47);
+		panel.add(txtrUseThisDialog);
+		
+		JButton btnNewButton = new JButton("Simulate {L, T, \u2206}");
+		btnNewButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+				int K_avg = 3;
+				int N = 200;
+				int L = 50;
+				float chanceOf1 = 0.5f;
+				int tau = 6;
+				ShannonSource ss = new ShannonSource(100, chanceOf1);
+				RBN rbn =  new RBN(K_avg, N, L);
+				
+				ArrayList<String> LValues = new ArrayList<String>();
+				ArrayList<String> TauValues = new ArrayList<String>();
+				ArrayList<String> CompValues = new ArrayList<String>();
+				
+				for(tau = 1; tau < 7; tau++)
+				{
+					for (L = 1; L < 20; L++)
+					{
+						//float ccTotal = 0;
+						//for(int i = 0; i < 500; i++)
+						//{
+		
+							rbn.regenerateInternalNodes();
+							int[] inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
+							String computationalCapability = Float.toString(RBN.calculateComputationalCapability(rbn, inputIntArray, tau));
+							LValues.add(Integer.toString(L));
+							TauValues.add(Integer.toString(tau));
+							CompValues.add(computationalCapability);
+							
+						//}
+					}
+				}
+				
+				
+				PrintWriter writer;
+				try {
+						writer = new PrintWriter(new FileWriter("/Users/willimac/Desktop/batch.csv", true));
+						writer.print("L,");
+						for(int i = 0; i < LValues.size(); i++) 
+						{
+							writer.print(LValues.get(i) + ",");
+						}
+						writer.print("\n");
+						
+						writer.print("T,");
+						for(int i = 0; i < TauValues.size(); i++) 
+						{
+							writer.print(TauValues.get(i) + ",");
+						}
+						writer.print("\n");
+						
+						writer.print("C,");
+						for(int i = 0; i < CompValues.size(); i++)
+						{
+							writer.print(CompValues.get(i) + ",");
+						}
+						writer.print("\n");
+						
+						writer.close();
+						
+					} catch (IOException ex) {
+						// TODO Auto-generated catch block
+						ex.printStackTrace();
+					}
+				
+				
+			}
+		});
+		btnNewButton.setBounds(10, 106, 168, 29);
+		frame.getContentPane().add(btnNewButton);
+	}
+	
+	public Color rgb(int minimum, int maximum, int value)
+	{
+	    float minimum_f = (float)minimum;
+	    float maximum_f = (float)maximum;
+	    float value_f = (float)value;
+	    
+	    float halfmax = (minimum + maximum) / 2;
+	    int b = (int)(Math.max(0, 255*(1 - value/halfmax)));
+	    int r = (int)(Math.max(0, 255*(value/halfmax - 1)));
+	    int g = 255 - b - r;
+	    
+	    Color color = new Color(r,g,b);
+	    return color;
+	}
+
+}

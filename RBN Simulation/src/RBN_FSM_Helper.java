@@ -23,7 +23,7 @@ public class RBN_FSM_Helper {
 		//  The number of states in the FSM is 2^(# of nodes in the RBN)
 		//  This means the states in the FSM range from when the nodes in the RBN are all 0s to all 1s
 		int numStates = (int)Math.pow(2, numNodes);
-		
+		 
 		//  Create the FSM Object, this will add the states to the FSM
 		FSM fsm = new FSM(numStates, 1);
 		
@@ -36,12 +36,12 @@ public class RBN_FSM_Helper {
 			
 			//  Test input = 0
 			rbn.reinitialize(i, 0);
-			rbn.nextState(0); // Doesn't matter what the next input is because we reset it
+			rbn.nextState(0, "/Users/willimac/Desktop/STATEFILE.csv"); // Doesn't matter what the next input is because we reset it
 			int zero_nextState = getCurrentRBNState(rbn);
 			
 			//  Test input = 1
 			rbn.reinitialize(i, 1);
-			rbn.nextState(0); //  Doesn't matter what the next input is because we're done testing this state
+			rbn.nextState(1, "/Users/willimac/Desktop/STATEFILE.csv"); //  Doesn't matter what the next input is because we're done testing this state
 			int one_nextState = getCurrentRBNState(rbn);
 			
 			//  Submit the states and current state output to the FSM state object

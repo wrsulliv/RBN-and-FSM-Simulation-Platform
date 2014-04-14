@@ -1,0 +1,27 @@
+
+
+public class runner {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		
+		//  Create the RBN with N, Ki, and L
+		RBN rbn = new RBN(2, 5, 3);
+		rbn.writeNetworkSetupToFile("/Users/willimac/Desktop/rbn_test.csv");
+		
+		FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+		fsm.writeToFile("/Users/willimac/Desktop/fsm_test.csv");
+		
+		// Show that a CSV can be read back into the program 
+		RBN rbn2 = new RBN("/Users/willimac/Desktop/rbn_test.csv");
+		rbn2.writeNetworkSetupToFile("/Users/willimac/Desktop/rbn_test_2.csv");
+		
+		//FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+		//fsm.writeToFile("/Users/willimac/Desktop/fsm_test.csv");
+	}
+
+}

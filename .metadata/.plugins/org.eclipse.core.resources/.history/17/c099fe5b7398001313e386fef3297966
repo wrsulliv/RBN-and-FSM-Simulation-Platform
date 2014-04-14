@@ -1,0 +1,98 @@
+import java.awt.EventQueue;
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import java.awt.Font;
+import java.awt.Color;
+import javax.swing.JTextArea;
+
+
+public class RBNInstanceSimulationResults {
+
+	private JFrame frame;
+
+
+	/**
+	 * Create the application.
+	 */
+	public RBNInstanceSimulationResults() {
+		initialize();
+	}
+
+	/**
+	 * Initialize the contents of the frame.
+	 */
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 622, 546);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+		
+		ImagePanel imagePanel = new ImagePanel("/Users/willimac/Desktop/testPic.bmp");
+		imagePanel.setBounds(321, 128, 266, 253);
+		frame.getContentPane().add(imagePanel);
+		
+		ImagePanel imagePanel_1 = new ImagePanel("/Users/willimac/Desktop/testPic.bmp");
+		imagePanel_1.setBounds(26, 128, 266, 253);
+		frame.getContentPane().add(imagePanel_1);
+		
+		JLabel label = new JLabel("RBN Change Space");
+		label.setBounds(101, 100, 122, 16);
+		frame.getContentPane().add(label);
+		
+		JLabel label_1 = new JLabel("RBN State Space");
+		label_1.setBounds(399, 100, 122, 16);
+		frame.getContentPane().add(label_1);
+		
+		JPanel panel = new JPanel();
+		panel.setBackground(Color.WHITE);
+		panel.setBounds(0, 0, 622, 74);
+		frame.getContentPane().add(panel);
+		panel.setLayout(null);
+		
+		JLabel lblRbnInstanceSimulation = new JLabel("RBN Instance Simulation Results:");
+		lblRbnInstanceSimulation.setFont(new Font("Lucida Grande", Font.BOLD, 13));
+		lblRbnInstanceSimulation.setBounds(6, 6, 242, 16);
+		panel.add(lblRbnInstanceSimulation);
+		
+		JTextArea txtrThisDialogShows = new JTextArea();
+		txtrThisDialogShows.setText("This dialog shows simulation results for the chosen RBN instance. ");
+		txtrThisDialogShows.setBounds(37, 34, 560, 16);
+		panel.add(txtrThisDialogShows);
+		
+		JPanel panel_1 = new JPanel();
+		panel_1.setBackground(Color.WHITE);
+		panel_1.setBounds(0, 497, 622, 27);
+		frame.getContentPane().add(panel_1);
+		panel_1.setLayout(null);
+		
+		JLabel lblNewLabel = new JLabel("Instance Settings: ");
+		lblNewLabel.setBounds(6, 6, 128, 16);
+		panel_1.add(lblNewLabel);
+		
+		JLabel label_2 = new JLabel("|    <K> = ");
+		label_2.setBounds(146, 6, 74, 16);
+		panel_1.add(label_2);
+		
+		JLabel label_3 = new JLabel("2");
+		label_3.setBounds(219, 6, 15, 16);
+		panel_1.add(label_3);
+		
+		JLabel lblL = new JLabel("|    L = ");
+		lblL.setBounds(244, 6, 74, 16);
+		panel_1.add(lblL);
+		
+		JLabel label_4 = new JLabel("15");
+		label_4.setBounds(294, 6, 36, 16);
+		panel_1.add(label_4);
+		
+		JLabel lblN = new JLabel("|    N = ");
+		lblN.setBounds(330, 6, 49, 16);
+		panel_1.add(lblN);
+		
+		JLabel label_5 = new JLabel("2");
+		label_5.setBounds(382, 6, 36, 16);
+		panel_1.add(label_5);
+	}
+}

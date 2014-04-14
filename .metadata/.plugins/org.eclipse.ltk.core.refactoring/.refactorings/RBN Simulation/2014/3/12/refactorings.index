@@ -1,0 +1,9 @@
+1395013699086	Rename type 'BatchSimulator'
+1395017698399	Rename type 'DiscreteVariable'
+1395017722324	Rename type 'JavaRBNDiscreteVariable'
+1395017745791	Rename type 'JavaRBNDiscreteVariableType'
+1395018611593	Rename type 'ConstantVariable'
+1395018622784	Rename type 'DiscreteVariable'
+1395021169004	Delete element
+1395034065831	Rename type 'AverageMachine'
+1395034079430	Rename type 'StatisticsMachine'

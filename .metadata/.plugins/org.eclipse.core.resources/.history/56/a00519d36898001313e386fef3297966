@@ -1,0 +1,42 @@
+
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import java.awt.Font;
+import javax.swing.JPanel;
+
+
+public class HomeWindow {
+
+	public String workspacePath;
+	private JFrame frame;
+
+	/**
+	 * Create the application.
+	 */
+	public HomeWindow(String workspacePath) {
+		this.workspacePath = workspacePath;
+		initialize();
+	}
+
+	/**
+	 * Initialize the contents of the frame.
+	 */
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 451, 411);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+		
+		JPanel panel = new JPanel();
+		panel.setBounds(6, 0, 445, 109);
+		frame.getContentPane().add(panel);
+		panel.setLayout(null);
+		
+		JLabel lblNewLabel = new JLabel("SimBN\n");
+		lblNewLabel.setBounds(192, 5, 61, 22);
+		panel.add(lblNewLabel);
+		lblNewLabel.setFont(new Font("Lucida Grande", Font.PLAIN, 18));
+		frame.setVisible(true);
+	}
+}

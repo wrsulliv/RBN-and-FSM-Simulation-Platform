@@ -1,0 +1,66 @@
+import java.awt.EventQueue;
+
+import javax.swing.JFrame;
+import javax.swing.JMenuBar;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+
+
+public class MainWindow {
+
+	private JFrame frame;
+
+	/**
+	 * Launch the application.
+	 */
+	public static void main(String[] args) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					MainWindow window = new MainWindow();
+					window.frame.setVisible(true);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+
+	/**
+	 * Create the application.
+	 */
+	public MainWindow() {
+		initialize();
+	}
+
+	/**
+	 * Initialize the contents of the frame.
+	 */
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 602, 425);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		JMenuBar menuBar = new JMenuBar();
+		frame.setJMenuBar(menuBar);
+		
+		JMenu mnFile = new JMenu("File");
+		menuBar.add(mnFile);
+		
+		JMenuItem mntmNewRbn = new JMenuItem("New RBN");
+		mnFile.add(mntmNewRbn);
+		
+		JMenuItem mntmExportRbn = new JMenuItem("Export RBN");
+		mnFile.add(mntmExportRbn);
+		
+		JMenuItem mntmExportFsm = new JMenuItem("Export FSM");
+		mnFile.add(mntmExportFsm);
+		
+		JMenuItem mntmLoadRbn = new JMenuItem("Load RBN");
+		mnFile.add(mntmLoadRbn);
+		
+		JMenu mnEdit = new JMenu("Edit");
+		menuBar.add(mnEdit);
+		frame.getContentPane().setLayout(null);
+	}
+}

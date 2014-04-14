@@ -1,0 +1,15 @@
+
+public class DataPoint3D {
+	
+	public Float x;
+	public Float y;
+	public Float heatPoint;
+
+	DataPoint3D(Float x, Float y, Float heatPoint)
+	{
+		this.x = x;
+		this.y = y;
+		this.heatPoint = heatPoint;
+		
+	}
+}

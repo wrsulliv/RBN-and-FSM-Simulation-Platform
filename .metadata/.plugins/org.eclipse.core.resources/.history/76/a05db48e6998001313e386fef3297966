@@ -1,0 +1,51 @@
+
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import java.awt.Font;
+import javax.swing.JPanel;
+import java.awt.Color;
+import javax.swing.JTextArea;
+
+
+public class HomeWindow {
+
+	public String workspacePath;
+	private JFrame frame;
+
+	/**
+	 * Create the application.
+	 */
+	public HomeWindow(String workspacePath) {
+		this.workspacePath = workspacePath;
+		initialize();
+	}
+
+	/**
+	 * Initialize the contents of the frame.
+	 */
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 539, 316);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+		
+		JPanel panel = new JPanel();
+		panel.setBackground(Color.WHITE);
+		panel.setBounds(0, 0, 539, 89);
+		frame.getContentPane().add(panel);
+		panel.setLayout(null);
+		
+		JLabel lblNewLabel = new JLabel("Home:\n");
+		lblNewLabel.setBounds(22, 6, 110, 22);
+		panel.add(lblNewLabel);
+		lblNewLabel.setFont(new Font("Lucida Grande", Font.BOLD, 13));
+		
+		JTextArea txtrWelcomeToThe = new JTextArea();
+		txtrWelcomeToThe.setLineWrap(true);
+		txtrWelcomeToThe.setText("Welcome to the SimBN simulator.  This simulator can be used to analyze random Boolean networks and their equivalent finite state automata.");
+		txtrWelcomeToThe.setBounds(32, 37, 480, 52);
+		panel.add(txtrWelcomeToThe);
+		frame.setVisible(true);
+	}
+}

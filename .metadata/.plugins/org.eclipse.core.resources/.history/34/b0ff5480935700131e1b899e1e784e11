@@ -1,0 +1,44 @@
+import java.util.ArrayList;
+
+
+
+public class runner {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		
+		//  Create the RBN with N, Ki, and L
+		RBN rbn = new RBN(9, 60, 10);
+		rbn.writeNetworkSetupToFile("/Users/willimac/Desktop/rbn_test.csv");
+		int[] inputString = MathHelper.convertStringToIntArray("00001000100000101010111110101010110011111111010100000000101010101001010100011111101010011001101010111111101010001011011010101");
+		rbn.RunSimulation(inputString, "/Users/willimac/Desktop/testPic.bmp");
+		
+		
+		int[] inputString2 = MathHelper.convertStringToIntArray("00001000100000101010111110101010110011111111010100000000101010101001010100011111101010011001101010111111101010001011011001010");
+		try {
+			int num = rbn.getHammingDistance(inputString, inputString2);
+			float test = rbn.calculatePerturbanceSpreading(rbn, inputString, inputString2);
+			int i = 0;
+			i++;
+		} catch (HammingNodeCountException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+
+		//FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+		//fsm.writeToFile("/Users/willimac/Desktop/fsm_test.csv");
+		
+		// Show that a CSV can be read back into the program 
+		//RBN rbn2 = new RBN("/Users/willimac/Desktop/rbn_test.csv");
+		//rbn2.writeNetworkSetupToFile("/Users/willimac/Desktop/rbn_test_2.csv");
+		
+		//FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+		//fsm.writeToFile("/Users/willimac/Desktop/fsm_test.csv");
+	}
+
+}

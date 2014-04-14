@@ -1,0 +1,49 @@
+import java.io.Console;
+
+
+public class TestSuite {
+
+	public static void runTests()
+	{
+		
+		//  Open the RBN Test File
+		RBN rbn = new RBN("/Users/willimac/Documents/College/Senior!/DH Research/Test Files/rbn_test.csv");
+		
+		int[] inputString = MathHelper.convertStringToIntArray("0011");
+		int[] inputString2 = MathHelper.convertStringToIntArray("0101");
+		
+		//  Test Hamming Distance
+		int num;
+		try {
+			
+			num = rbn.getHammingDistance(inputString, inputString2);
+			if(num == 2)
+			{
+				
+				System.out.println("PASS");
+			}
+			else
+			{
+				System.out.println("FAIL");
+				
+			}
+		} catch (HammingNodeCountException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+		
+		//  Test Perturbance Spreading
+		float test = rbn.calculatePerturbanceSpreading(rbn, inputString, inputString2);
+		if(test == 1)
+		{
+			
+			System.out.println("PASS");
+		}
+		else
+		{
+			System.out.println("FAIL");
+			
+		}
+	}
+}
