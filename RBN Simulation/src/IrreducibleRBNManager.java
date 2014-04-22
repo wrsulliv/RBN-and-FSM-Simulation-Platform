@@ -40,7 +40,8 @@ public class IrreducibleRBNManager {
 //  Export Irreducible RBNs until the count is reached.
 	public void ExportIrreducibleRBNs(int K_avg, int N, int L, int count)
 	{
-		//  Create an arrays of irreducible networks
+		System.out.println("Searching for IRBNs with: N=" + Integer.toString(N) + ", <K>=" + Integer.toString(K_avg) + ", L=" + Integer.toString(L) + ", count=" + Integer.toString(count) + "\n");
+		//  Create an array of irreducible networks
 		ArrayList<RBN> rbnList = new ArrayList<RBN>();
 		int total = 0;
 		while(true)
@@ -48,6 +49,7 @@ public class IrreducibleRBNManager {
 			RBN rbn = new RBN(K_avg, N, L, randomGenerator);
 			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm()) //  This test should work for all probOfZero > 0
 			{
+				System.out.println("IRBNs Discovered: " + Integer.toString(total));
 				rbnList.add(rbn);
 			}
 			
@@ -67,7 +69,7 @@ public class IrreducibleRBNManager {
 			        ObjectOutputStream oos = new ObjectOutputStream (fos);
 			        oos.writeObject (rbnList);
 			        oos.close ();
-			        System.out.println(Integer.toString(total) + " :: " + "K_" +Integer.toString(K_avg) + "N_" + Integer.toString(N) + "L_" + Integer.toString(L) + "Count_" + Integer.toString(count) + ".ser");
+			        System.out.println("\n" + Integer.toString(total) + " :: " + "K_" +Integer.toString(K_avg) + "N_" + Integer.toString(N) + "L_" + Integer.toString(L) + "Count_" + Integer.toString(count) + ".ser has completed! \n");
 			        return;
 			    } catch ( Exception ex ) {
 			        ex.printStackTrace ();

@@ -373,6 +373,7 @@ public class FSM {
 	
 	public ArrayList<SimpleMatrix> getEigenVectorsForEigenValueOne(double probOfZero)
 	{
+		showFSMVisualization();
 		SimpleMatrix transitionMatrix = convertToSimpleMatrix(probOfZero);  //  Create the transition matrix of the FSM
 		SimpleMatrix sm = transitionMatrix.transpose(); //  transpose to compute the left hand eigen vectors
 		Object decomposition = new Object();
@@ -442,6 +443,7 @@ public class FSM {
 		for(int i = 0; i < vectors.get(0).numRows(); i++)
 		{
 			
+			//  Check for self loops.  We only want truly irreducible networks in the sense that any node can reach any other node
 			if(vectors.get(0).get(i, 0) == 0)
 			{
 				return false;
