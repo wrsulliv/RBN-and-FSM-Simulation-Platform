@@ -47,12 +47,11 @@ public class IrreducibleRBNManager {
 		while(true)
 		{
 			RBN rbn = new RBN(K_avg, N, L, randomGenerator);
-			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm()) //  This test should work for all probOfZero > 0
-			{
-				System.out.println("IRBNs Discovered: " + Integer.toString(total));
+			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducible(0.5f)) //  This test should work for all probOfZero > 0
+			{				
+				System.out.println("IRBNs Discovered: " + Integer.toString(rbnList.size()));
 				rbnList.add(rbn);
 			}
-			
 			total++;
 			if(rbnList.size() == count)
 			{
@@ -69,7 +68,8 @@ public class IrreducibleRBNManager {
 			        ObjectOutputStream oos = new ObjectOutputStream (fos);
 			        oos.writeObject (rbnList);
 			        oos.close ();
-			        System.out.println("\n" + Integer.toString(total) + " :: " + "K_" +Integer.toString(K_avg) + "N_" + Integer.toString(N) + "L_" + Integer.toString(L) + "Count_" + Integer.toString(count) + ".ser has completed! \n");
+			        System.out.println("\nFinished Finding " + Integer.toString(count) + " Networks with " + Integer.toString(total) + " total attempts."); 
+			        System.out.println("Output File: K_" +Integer.toString(K_avg) + "N_" + Integer.toString(N) + "L_" + Integer.toString(L) + "Count_" + Integer.toString(count) + ".ser has completed! \n");
 			        return;
 			    } catch ( Exception ex ) {
 			        ex.printStackTrace ();

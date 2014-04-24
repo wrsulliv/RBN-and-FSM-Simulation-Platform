@@ -109,32 +109,57 @@ public class TestSuite {
 		}
 		
 		
-		//  Test the FSM Code
+		//  Test My personal irreducibility test algorithm for success
 		FSM fsm = new FSM("/Users/willimac/Documents/College/Senior!/DH Research/Test Files/irreducible_fsm.csv");
 		if(fsm.isIrreducibleViaAlgorithm())
 		{
 			
-			System.out.println("PASS: Irreducible");
+			System.out.println("PASS: Algorithm - Irreducible");
 		}
 		else
 		{
-			System.out.println("FAIL: Irreducible");
+			System.out.println("FAIL: Algorithm - Irreducible");
 			
 		}
 		
-		//  Test the FSM Code
+		//  Test My personal irreducibility test algorithm for failure
 		fsm = new FSM("/Users/willimac/Documents/College/Senior!/DH Research/Test Files/not_irreducible_fsm.csv");
 		if(!fsm.isIrreducibleViaAlgorithm())
 		{
 			
-			System.out.println("PASS: Not Irreducible");
+			System.out.println("PASS: Algorithm - Not Irreducible");
 		}
 		else
 		{
-			System.out.println("FAIL: Not Irreducible");
+			System.out.println("FAIL: Algorithm - Not Irreducible");
 			
 		}
 		
-		//fsm.writeToFile("/Users/willimac/Desktop/fsm_test.csv");
+		//  Test the Eigenvalue / Eigenvector irreducibility test for success
+		fsm = new FSM("/Users/willimac/Documents/College/Senior!/DH Research/Test Files/irreducible_fsm.csv");
+		if(fsm.isIrreducible(0.5f))
+		{
+			
+			System.out.println("PASS: Eigenvalue / Eigenvector - Irreducible");
+		}
+		else
+		{
+			System.out.println("FAIL: Eigenvalue / Eigenvector - Irreducible");
+			
+		}
+		
+		//  Test the Eigenvalue / Eigenvector irreducibility test for failure
+		fsm = new FSM("/Users/willimac/Documents/College/Senior!/DH Research/Test Files/not_irreducible_fsm.csv");
+		if(!fsm.isIrreducible(0.5f))
+		{
+			
+			System.out.println("PASS: Eigenvalue / Eigenvector - Not Irreducible");
+		}
+		else
+		{
+			System.out.println("FAIL: Eigenvalue / Eigenvector - Not Irreducible");
+			
+		}
+		
 	}
 }

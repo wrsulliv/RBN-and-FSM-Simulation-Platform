@@ -207,7 +207,7 @@ private void performSimulation(DependentVariableType dependentVariableType, RBN 
 		case computationalCapability:
 			
 			int tau = this.variableValues[DiscreteVariableType.Tau.id];
-			ShannonSource ss = new ShannonSource(10, 0.5f);
+			ShannonSource ss = new ShannonSource(3, 0.5f);
 			int[] inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
 			float computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
 			statMachine.add(computationalCapability);
@@ -215,10 +215,29 @@ private void performSimulation(DependentVariableType dependentVariableType, RBN 
 		case dissipationBound:
 			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm())
 			{
-				statMachine.add(RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(75, 0.5f));
+				statMachine.add(RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(0.5f));
 				return;
 			}
-
+		case energyPerUnitCapability:
+		{
+			tau = this.variableValues[DiscreteVariableType.Tau.id];
+			ss = new ShannonSource(3, 0.5f);
+			inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
+			computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
+			double dissipation = RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(0.5f);
+			if(!(dissipation == -1))
+			{
+				if(!(computationalCapability == 0))
+				{
+				statMachine.add(dissipation / computationalCapability);
+				}
+			}
+			else
+			{
+				return;
+			}
+			
+		}
 		default:
 			return;
 	

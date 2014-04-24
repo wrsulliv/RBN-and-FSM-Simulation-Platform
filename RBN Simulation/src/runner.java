@@ -20,6 +20,9 @@ public class runner {
 	 */
 	public static void main(String[] args) {
 		
+		//  Run Tests
+		TestSuite.runTests();
+		
 		//  Set the workspace
 		String pathToWorkspace = "/Users/willimac/Documents/College/Senior!/DH Research/Test Files/";
 		
@@ -32,7 +35,7 @@ public class runner {
 //		//  Create the irreducible RBN generator
 		IrreducibleRBNManager irm = new IrreducibleRBNManager(pathToIrreducible, pathToWorkspace, randomGenerator);
 //		
-		irm.BatchIrreducibleExport(1, 5, 6, 7, 1, 3, 50);
+		irm.BatchIrreducibleExport(4, 7, 5, 7, 1, 3, 50);
 //		
 //		System.out.println("Done");
 		
@@ -51,21 +54,21 @@ public class runner {
 		//  Create the sweeping variables
 		ArrayList<SweepingDiscreteVariable> sweepingVariables = new ArrayList<SweepingDiscreteVariable>();
 		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.K_avg, 1, 3, 1, 0, true)); //  Test each k first
-		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.N, 5, 5, 1, 0, true)); //  Test the N=5 networks
-		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.Tau, 3, 3, 1, 0, true)); //  Test with tau=10
+		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.N, 3, 5, 1, 0, true)); //  Test the N=5 networks
+		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.Tau, 1, 1, 1, 0, true)); //  Test with tau=10
 		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.IrreducibleFile_Averager, 50, 50, 1, 0, true));
 		
-		//  Create the constant variables (L=1) because input nodes don't matter for this test
+		//  Create the constant variables (L=2)
 		ArrayList<ConstantDiscreteVariable> constantVariables = new ArrayList<ConstantDiscreteVariable>();
 		constantVariables.add(new ConstantDiscreteVariable(DiscreteVariableType.L, 2));
 		
 		DependentVariableType dependentVariableType = DependentVariableType.computationalCapability;
-		String csvFilePath = "/Users/willimac/Documents/College/Senior!/DH Research/ComputationalCapability_K1_N5.csv";
+		String csvFilePath = "/Users/willimac/Documents/College/Senior!/DH Research/EnergyDissipation.csv";
 		
 		//randomGenerator.writeHistogramToCSV("/Users/willimac/Documents/College/Senior!/DH Research/histogram.csv", 100, 1000000000);
 		
-		BatchSimulator batchSim = new BatchSimulator(sweepingVariables,constantVariables ,dependentVariableType ,csvFilePath ,randomGenerator, irm);
-		batchSim.generateCSV();
+		//BatchSimulator batchSim = new BatchSimulator(sweepingVariables,constantVariables ,dependentVariableType ,csvFilePath ,randomGenerator, irm);
+		//batchSim.generateCSV();
 		
 		
 		

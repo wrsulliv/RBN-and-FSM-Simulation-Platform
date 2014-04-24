@@ -569,7 +569,7 @@ public class RBN implements Serializable {
 		}
 		
 		//  Write the current state after switching, so the input which cause the state is shown next to the state (initial state of 0 not shown)
-		this.writeNetworkSateToFile(saveFile);
+		//this.writeNetworkSateToFile(saveFile);
 		
 	}
 }

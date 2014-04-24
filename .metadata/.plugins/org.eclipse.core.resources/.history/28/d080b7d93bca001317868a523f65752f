@@ -1,0 +1,493 @@
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Paint;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+
+import javax.swing.JFrame;
+
+import org.apache.commons.collections15.Transformer;
+import org.ejml.data.Complex64F;
+import org.ejml.data.DenseMatrix64F;
+import org.ejml.data.MatrixIterator;
+import org.ejml.factory.DecompositionFactory;
+import org.ejml.factory.EigenDecomposition;
+import org.ejml.simple.SimpleEVD;
+import org.ejml.simple.SimpleMatrix;
+import org.ejml.*;
+
+import edu.uci.ics.jung.algorithms.layout.CircleLayout;
+import edu.uci.ics.jung.algorithms.layout.FRLayout2;
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.algorithms.layout.SpringLayout;
+import edu.uci.ics.jung.algorithms.layout.StaticLayout;
+import edu.uci.ics.jung.algorithms.util.IterativeContext;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
+import edu.uci.ics.jung.graph.Graph;
+import edu.uci.ics.jung.graph.SparseMultigraph;
+import edu.uci.ics.jung.graph.util.EdgeType;
+import edu.uci.ics.jung.visualization.BasicVisualizationServer;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
+
+//  Just an FSM, this has nothing to do with RBN, the conversion is done in a helper class
+//  This is the class for a Moore FSM
+public class FSM {
+
+	ArrayList<State> states;
+	//int numStates;
+
+	public FSM(int numStates, int numInputs)
+	{
+		this.states = new ArrayList<State>();
+		this.generateStates(numInputs, numStates);
+		
+	}
+	
+	//  Load the FSM from a file
+	public FSM(String csvFile)
+	{
+		this.states = new ArrayList<State>();
+		ArrayList<String[]> csvImport = MathHelper.spliceCSVToArrayList(csvFile);
+		for(int i = 0; i < csvImport.size(); i++)
+		{
+			State s = new State(1);
+			//  TODO:  Add support for non-binary states.
+			s.nextStateArray[0] = Integer.parseInt(csvImport.get(i)[1]);
+			s.nextStateArray[1] = Integer.parseInt(csvImport.get(i)[2]);
+			s.currentStateOutput = Integer.parseInt(csvImport.get(i)[3]);
+			this.states.add(s);
+			
+			
+		}
+	}
+	
+	public boolean isIrreducibleViaAlgorithm()
+	{
+		//  How to use the SimpleMatrix methods:
+		// set( row , col , value )
+
+		//  Algorithm Definitions and Summary:
+		//  S0 = The current state
+		//  S1 = The set of state S0 can go to
+		//  S2 = The set of states some S1 can go to
+		//  Create the matrix which will hold the state transitions.  This table is initialized to all 0's so that
+		//  it can be filled in sequentially.  By doing this, we will be guaranteed that when checking S2, it will hold all possible
+		//  states S0 can hope to reach through S1.  In other words, S2 has absorbed all values of S(2+n).
+		SimpleMatrix sm = new SimpleMatrix(this.states.size(), this.states.size());
+		
+		
+		
+		//  Loop through each state, and  perform the irreducibility algorithm
+		for(int i = 0; i < this.states.size(); i++)
+		{
+				
+			
+			sm.set(i, states.get(i).nextStateArray[0], 1);
+			updateState_S0_ThroughState_S1_(sm, i, states.get(i).nextStateArray[0]);
+			
+			sm.set(i, states.get(i).nextStateArray[1], 1);
+			updateState_S0_ThroughState_S1_(sm, i, states.get(i).nextStateArray[1]);
+			
+			stateTransitionDidChange(sm, i);
+			
+		}
+		
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			
+			for(int j = 0; j < this.states.size(); j++)
+			{
+				
+				if(sm.get(i, j) == 0)
+				{
+					
+					//  If there is a zero in the transition matrix, then return false (not-irreducible)
+					return false;
+				}
+			}
+		}
+		
+		// If there are no zeros in the transition matrix then return true (irreducible)
+		return true;
+		
+	}
+	
+	
+	//  Called when a state's transition row changes.  Loops through all other states to see if they depend on 'changedState'.
+	//  If they do, then the state with the dependency is updated via 'updateState_S0_ThroughState_S1_'.  Where S0 is the state
+	//  with the dependency (state which leads to 'changedStates'), and S1 is 'changedState'
+	private void stateTransitionDidChange(SimpleMatrix sm, int changedState)
+	{
+
+		
+		//  Loop through every state and check if it needs to be changed, if so, change it and call stateTransitionDidChange recursively
+		for(int i = 0; i < this.states.size(); i++)
+		{
+				//  If state 'i' goes to state 'changedState' then update state 'i'
+				if(sm.get(i, changedState) == 1)
+				{
+					updateState_S0_ThroughState_S1_(sm, i, changedState);
+					
+					//  break the inner loop because the entire state will be changed for all values of j which are not correct
+					//break;
+				}
+			
+		}
+		
+	}
+	
+	//  Will update state S0 with the new states S1 can goto (it's assumed that S0 can get to S1)
+	private void updateState_S0_ThroughState_S1_(SimpleMatrix sm, int S0, int S1)
+	{
+		
+		//  Keep a boolean to see whether or not S0 actually changes
+		boolean hasS0Changed = false;
+		
+		//  Loop through each state in S0 and find states which are not connected
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			//  If S0 is not connected then...
+			if(sm.get(S0, i) == 0)
+			{
+				//  If S1 (the state we are currently checking, which S0 goes through) can lead S0 to state i then...
+				if(sm.get(S1, i) == 1)
+				{
+					//  Mark that S0 can be connected to state i
+					sm.set(S0, i, 1);
+					
+					//  Mark S0 as being changed
+					hasS0Changed = true;
+					
+				}
+				
+			}
+			
+		}
+		
+		if(hasS0Changed)
+		{
+			// Since state S0 has changed, call 'stateTransitionDidChange' on S0
+			stateTransitionDidChange(sm, S0);
+		}
+	}
+	
+	public void showFSMVisualization()
+	{
+		
+		// Graph<V, E> where V is the type of the vertices 
+		 // and E is the type of the edges
+		 Graph<Integer, String> g = new DirectedSparseMultigraph<Integer, String>();
+		 
+		 // Add as many vertices as there are states
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addVertex(i);
+		 }
+
+		 
+		 //  Loop through and add edges to the graph
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addEdge(Integer.toString(i) + "0",  i, this.states.get(i).nextStateArray[0], EdgeType.DIRECTED);
+			 g.addEdge(Integer.toString(i) + "1",  i, this.states.get(i).nextStateArray[1], EdgeType.DIRECTED);
+			 
+		 }
+
+		 
+		 //  Set style properties for the graph
+		 Transformer<Integer,Paint> vertexPaint = new Transformer<Integer,Paint>() {
+			 public Paint transform(Integer i) {
+			 return Color.GREEN;
+			 }
+			 }; 
+
+		 
+		 
+		// The Layout<V, E> is parameterized by the vertex and edge types
+		Layout<Integer, String> layout = new SpringLayout<Integer, String>(g);
+		layout.setSize(new Dimension(750,750)); // sets the initial size of the space
+		// The BasicVisualizationServer<V,E> is parameterized by the edge types
+		VisualizationViewer<Integer,String> vv = 
+				 new VisualizationViewer<Integer,String>(layout);
+
+
+		vv.setPreferredSize(new Dimension(750,750)); //Sets the viewing area size
+		vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+
+		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+		 vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR); 
+
+		 
+		JFrame frame = new JFrame("Simple Graph View");
+		DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+		 gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+		 vv.setGraphMouse(gm); 
+			vv.setBackground(Color.WHITE);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		frame.getContentPane().add(vv);
+		frame.pack();
+		frame.setVisible(true);
+	}
+	public void generateStates(int numInputs, int numStates)
+	{
+		for(int i = 0; i < numStates; i++)
+		{
+			states.add(new State(numInputs));
+			
+		}
+	}
+	
+	public double getEnergyDissipation(double probabilityOfZero)
+	{
+		//double boltzmannConstant = 1.3806488f*Math.pow(10, -23);
+		double entropy = getShannonEntropy(probabilityOfZero);
+		return entropy;
+		
+	}
+	
+	private double getShannonEntropy(double probOfZero)
+	{
+		ArrayList<SimpleMatrix> sm = getEigenVectorsForEigenValueOne(probOfZero);
+		
+		SimpleMatrix steadyStateOccupationVector;
+		try
+		{
+			steadyStateOccupationVector = sm.get(0);
+			
+		}
+		catch(Exception Ex)
+		{
+			System.out.println("Eigenvector index failure!");
+			return -1;
+		}
+		
+		double informationLoss = 0;
+		//  Loop over the possible inputs
+		for(int j = 0; j < 2; j++)
+		{
+			//  Loop through the possible final states
+			double sum2 = 0;
+			for(int i = 0; i < this.states.size(); i++)
+			{
+				
+				SimpleMatrix transitionTable = convertToSimpleMatrixConditionedOnInput(j);
+				
+				//  Get the sum of a column in the transition table to use for normalization.  Given that states 2, and 3 can go
+				//  to state 5, we can sum the 5'th column to get the sum of the conditional probabilities:  P(last state = 2 | current state = 5)P(5)
+				//  + P(last state = 3 | current state = 5)P(5) = P(last state = 2 ^ current state = 5) + P(last state = 3 ^ current state = 5)P(5) = 1
+				//  Because we know the sum must add to 1 from the law of total probability, we normalize the column.
+				
+				//  Find the sum of the ith column
+				double sum = 0;
+				for(int row = 0; row < transitionTable.numRows(); row++)
+				{
+					sum += transitionTable.get(row, i);
+				}
+				
+				//  Normalize the elements in the ith column and compute the entropy term Hj(S(n-1)|S(n))
+				double internalSum = 0;
+				for(int row = 0; row < transitionTable.numRows(); row++)
+				{
+					if(sum > 0)
+					{
+						double probabilityRowGoesToi =  transitionTable.get(row, i) / sum;
+						internalSum = internalSum + probabilityRowGoesToi * NonInfiniteLog(probabilityRowGoesToi);
+					}
+					
+				}
+				
+				//  Multiple P(Last state = i)
+				double probbilityLastStateIsi = steadyStateOccupationVector.get(i, 0);
+				sum2 = sum2 + internalSum*probbilityLastStateIsi;
+
+			}
+			sum2 = sum2*-1*probOfZero;
+			informationLoss += sum2;
+		}
+		
+		return informationLoss;
+		
+	}
+	
+	
+	
+	private double NonInfiniteLog(double input)
+	{
+		if(input == 0)
+		{
+			return 0;
+		}
+		else
+		{
+			return Math.log(input) / Math.log(2);
+		}
+	}
+	public SimpleMatrix convertToSimpleMatrix(double probOfZero)
+	{
+
+		//  Convert the states list to an array to be transformed into a SimpleMatrix
+		double[][] fsmArray = new double[states.size()][states.size()];
+		for(int i = 0; i < states.size(); i++) //  Loop through array where i is the row which represents a given state, such that the 
+			//  number in the ith row and jth column is the conditional probability of getting to state j given we are in state i in only one step.
+		{
+			
+			if(states.get(i).nextStateArray[0] == states.get(i).nextStateArray[1])
+			{
+				fsmArray[i][states.get(i).nextStateArray[0]] = probOfZero*2;
+				
+			}
+			else
+			{
+				fsmArray[i][states.get(i).nextStateArray[0]] = probOfZero;
+				fsmArray[i][states.get(i).nextStateArray[1]] = probOfZero;
+				
+			}
+			
+		}
+		
+		SimpleMatrix sm = new SimpleMatrix(fsmArray);
+		return sm;
+		
+	}
+	
+	public SimpleMatrix convertToSimpleMatrixConditionedOnInput(int input)
+	{
+
+		//  Convert the states list to an array to be transformed into a SimpleMatrix
+		double[][] fsmArray = new double[states.size()][states.size()];
+		for(int i = 0; i < states.size(); i++) //  Loop through array where i is the row which represents a given state, such that the 
+			//  number in the ith row and jth column is the conditional probability of getting to state j given we are in state i in only one step.
+		{
+			
+				fsmArray[i][states.get(i).nextStateArray[input]] = 1;
+			
+		}
+		
+		SimpleMatrix sm = new SimpleMatrix(fsmArray);
+		return sm;
+		
+	}
+	
+	
+	public ArrayList<SimpleMatrix> getEigenVectorsForEigenValueOne(double probOfZero)
+	{
+		//showFSMVisualization();
+		SimpleMatrix transitionMatrix = convertToSimpleMatrix(probOfZero);  //  Create the transition matrix of the FSM
+		SimpleMatrix sm = transitionMatrix.transpose(); //  transpose to compute the left hand eigen vectors
+		EigenDecomposition<DenseMatrix64F> eig;
+		try
+		{
+			eig  = DecompositionFactory.eig(sm.numCols(), true);
+		    eig.decompose(sm.getMatrix());
+		}
+		catch(Exception ex)
+		{
+			return null;
+		}
+		int numberOfEigenValues = eig.getNumberOfEigenvalues();
+		ArrayList<SimpleMatrix> vecList = new ArrayList<SimpleMatrix>();
+		ArrayList<Double> eigenValueList = new ArrayList<Double>();
+		for(int i = 0; i < numberOfEigenValues; i++)
+		{
+
+			Complex64F eigenValue = eig.getEigenvalue(i); 
+			eigenValueList.add(eigenValue.real);
+			//System.out.println("Eigen Value: " + Double.toString(eigenValue.real));
+			if((eigenValue.real < 1.00001f) & (eigenValue.real > .9999f)) //  Should be 1, but floating point errors occur
+			{
+				
+				//  Get the Eigen Vectors
+				SimpleMatrix vec  = SimpleMatrix.wrap(eig.getEigenVector(i));
+				
+				//  Sum the elements in the Eigenvector to normalize later
+				double eigenvectorSum = 0;
+				
+				//  Normalize the Eigenvectors
+				for (int j = 0; j < vec.numRows(); j++)
+				{
+					double value = vec.get(j,  0) / eigenvectorSum;
+					vec.set(j, 0, value);	
+	
+				}
+				
+				//  Add the Eigen vector to the list
+				vecList.add(vec);
+			}
+			
+		}
+		
+		try
+		{
+		vecList.get(0);
+		}
+		catch(Exception ex)
+		{
+			int i = 0;
+			i++;
+		}
+		return vecList;
+		
+	}
+	
+	public boolean isIrreducible(double probOfZero)
+	{
+		ArrayList<SimpleMatrix> vectors = getEigenVectorsForEigenValueOne(probOfZero);
+		if(!(vectors.size() == 1))
+		{
+			return false;
+		}
+		
+		for(int i = 0; i < vectors.get(0).numRows(); i++)
+		{
+			
+			//  Check for self loops.  We only want truly irreducible networks in the sense that any node can reach any other node
+			if(vectors.get(0).get(i, 0) == 0)
+			{
+				return false;
+			}
+		}
+		
+		return true;
+		
+		
+	}
+	
+	//  Write state transition table to a file
+	public void writeToFile(String fileName)
+	{
+		PrintWriter writer;
+		try {
+				writer = new PrintWriter(fileName, "UTF-8");
+				for(int i = 0; i < states.size(); i++)
+				{
+					//  TODO:  Add support for non-binary states
+					writer.print(Integer.toString(i) + ","); // Write the state
+					writer.print(Integer.toString(states.get(i).nextStateArray[0]) + ","); // Write the 0 input state transition
+					writer.print(Integer.toString(states.get(i).nextStateArray[1]) + ","); // Write the 1 input state transition
+					writer.print(Integer.toString(states.get(i).currentStateOutput) + ","); // Write the current state output
+					writer.print("\n");
+				}
+
+				writer.close();
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	
+	
+}
