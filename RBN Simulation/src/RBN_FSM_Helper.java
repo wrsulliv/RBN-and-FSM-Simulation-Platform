@@ -1,3 +1,22 @@
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Paint;
+
+import javax.swing.JFrame;
+
+import org.apache.commons.collections15.Transformer;
+
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.algorithms.layout.SpringLayout;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
+import edu.uci.ics.jung.graph.Graph;
+import edu.uci.ics.jung.graph.util.EdgeType;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
+
 
 public class RBN_FSM_Helper {
 
@@ -76,6 +95,69 @@ public class RBN_FSM_Helper {
 		//  Return the decimal state
 		return decimalState;
 		
+	}
+	
+	public static void showRBNVisualization(RBN rbn)
+	{
+		
+		// Graph<V, E> where V is the type of the vertices 
+		 // and E is the type of the edges
+		 Graph<Integer, String> g = new DirectedSparseMultigraph<Integer, String>();
+		 
+		 // Add as many vertices as there are states
+		 for(int i = 0; i < rbn.nodes.size(); i++)
+		 {
+			 
+			 g.addVertex(i);
+		 }
+
+		 
+		 //  Loop through and add edges to the graph
+		 for(int i = 0; i < rbn.nodes.size(); i++)
+		 {
+			 for(int inputNode : rbn.nodes.get(i).inputNodes)
+			 {
+				 
+				 g.addEdge(Integer.toString(i) + Integer.toString(inputNode), inputNode, i, EdgeType.DIRECTED);
+			 }
+			 	 
+		 }
+
+		 
+		 //  Set style properties for the graph
+		 Transformer<Integer,Paint> vertexPaint = new Transformer<Integer,Paint>() {
+			 public Paint transform(Integer i) {
+			 return Color.blue;
+			 }
+			 }; 
+
+		 
+		 
+		// The Layout<V, E> is parameterized by the vertex and edge types
+		Layout<Integer, String> layout = new SpringLayout<Integer, String>(g);
+		layout.setSize(new Dimension(750,750)); // sets the initial size of the space
+		// The BasicVisualizationServer<V,E> is parameterized by the edge types
+		VisualizationViewer<Integer,String> vv = 
+				 new VisualizationViewer<Integer,String>(layout);
+
+
+		vv.setPreferredSize(new Dimension(750,750)); //Sets the viewing area size
+		vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+
+		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+		 vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR); 
+
+		 
+		JFrame frame = new JFrame("Simple Graph View");
+		DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+		 gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+		 vv.setGraphMouse(gm); 
+			vv.setBackground(Color.WHITE);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		frame.getContentPane().add(vv);
+		frame.pack();
+		frame.setVisible(true);
 	}
 	
 }

@@ -1,0 +1,345 @@
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Random;
+
+import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
+
+import edu.uci.ics.jung.graph.util.Context;
+
+
+//  This class is used to simulate many different variables against each other
+//  Since this is strictly the RBN batch simulator, it requires N, k_avg, and L as a minimum.
+public class BatchSimulator 
+{
+
+	
+	//  Input a list of constant variables for the test, and a list of sweep variables.
+	//  This list of sweep variables is processed as follows:
+	//  Index 0:  X-Axis
+	//  Index 1:  Different Line
+	//  Index 2:  Different Chart
+	ArrayList<SweepingDiscreteVariable> sweepingVariables;
+	ArrayList<ConstantDiscreteVariable> constantVariables;
+	DependentVariableType dependentVariableType;
+	int[] variableValues; //  Will hold the actual variable values.  Remember to update whenever adding a new variable!
+	String csvFilePath = "";
+	PrintWriter writer;
+	CustomRandom randomGenerator; //  Used in simulating the RBNs
+	StatisticMachine statMachine; //  Used for finding statistics which certain DiscreteVariables may choose to look at.
+	IrreducibleRBNManager iRBNManager; //  Used to export / import irreducible RBNs
+	
+	public BatchSimulator(ArrayList<SweepingDiscreteVariable> sweepingVariables, ArrayList<ConstantDiscreteVariable> constantVariables, DependentVariableType dependentVariableType, String csvFilePath, CustomRandom randomGenerator, IrreducibleRBNManager iRBNManager)
+	{
+		this.sweepingVariables = sweepingVariables;
+		this.constantVariables = constantVariables;
+		this.dependentVariableType = dependentVariableType;
+		variableValues = new int[DiscreteVariableType.values().length];
+		this.csvFilePath = csvFilePath;
+		this.randomGenerator = randomGenerator;
+		statMachine = new StatisticMachine();
+		this.iRBNManager = iRBNManager;
+		
+		try {
+			
+			writer = new PrintWriter(this.csvFilePath, "UTF-8");
+		
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		
+	}
+	
+	//  Generates a CSV with the given variable configuration
+	public void generateCSV()
+	{
+		//  First set everything that's in the constant variables
+		for(int i = 0; i < constantVariables.size(); i++)
+		{
+			this.variableValues[constantVariables.get(i).type.id] = constantVariables.get(i).value;
+		}
+		
+		//  Start the actual simulations and keep calling recursively.  
+		//  The dependent variables will change the type of simulations.
+		loopThroughVariables(sweepingVariables, 0, dependentVariableType);
+		
+		//  Close the writer 
+		writer.close();
+	}
+
+	
+
+	//  Loop through the variables of the simulations.  The levelIndex is the index in the list of the variable at a 
+	//  certain level of the loop 
+private void loopThroughVariables(ArrayList<SweepingDiscreteVariable> sweepingVariables, int levelIndex, DependentVariableType dependentVariableType)
+{
+	SweepingDiscreteVariable variable = sweepingVariables.get(levelIndex);
+	int endValue = variable.end;
+	int variableTypeID = variable.type.id;
+	int lastVariableIndex = sweepingVariables.size() - 1;
+
+	//  Loop through the variables until all have been simulated
+	for(int i = variable.start; i <= endValue; i=variable.next(i))
+	{
+		variableValues[variableTypeID] = i;
+		if(levelIndex == lastVariableIndex)
+		{
+			
+			//  If the last variable is an averager, then use the averager and only write to the file at the end
+			if(variable.type == DiscreteVariableType.Averager)
+			{
+				//  We want to average the results of i tests...
+				for(int j = 0; j < i; j++)
+				{
+					
+					//  Setup required parameters
+					int N = this.variableValues[DiscreteVariableType.N.id];
+					int K_avg = this.variableValues[DiscreteVariableType.K_avg.id];
+					//TODO: Fix this ratio stuff - int L = this.variableValues[DiscreteVariableType.L.id];
+					//int L = (int)((float)N * 0.4f); //  This was used for my poster test, figure 5
+					//  Run the simulator
+					int L = this.variableValues[DiscreteVariableType.L.id];
+					RBN rbn = new RBN(K_avg, N, L, randomGenerator);
+					
+					//  Calculate the simulation result
+					performSimulation(dependentVariableType, rbn);
+				
+					
+				}
+
+
+			}
+			else if(variable.type == DiscreteVariableType.IrreducibleFile_Averager)
+			{
+				String pathToIrreducible = " /Users/willimac/Documents/College/Senior!/DH Research/Test Files/IrreducibleRBNs";
+				//  Only use irreducible networks
+				
+				//  Load the File
+				int N = this.variableValues[DiscreteVariableType.N.id];
+				int K_avg = this.variableValues[DiscreteVariableType.K_avg.id];
+				int L = this.variableValues[DiscreteVariableType.L.id];
+				int count = i;
+				//  TODO:  Added quickfix '50' to the count below , should be dynamic
+				ArrayList<RBN> rbnList = (ArrayList<RBN>)iRBNManager.ImportIrreducibleRBNs(K_avg, N, L, count);
+				
+				for(int j = 0; j < count; j++)
+				{
+					//  Run the simulator
+					RBN rbn = rbnList.get(j);
+					
+					RBN_FSM_Helper.showRBNVisualization(rbn);
+					FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+					fsm.showFSMVisualization();
+					performSimulation(dependentVariableType, rbn);
+					
+					
+				}
+				
+			}
+			else
+			{
+				//  Setup required parameters
+				int N = this.variableValues[DiscreteVariableType.N.id];
+				int K_avg = this.variableValues[DiscreteVariableType.K_avg.id];
+				int L = this.variableValues[DiscreteVariableType.L.id];
+				
+				//  Run the simulator
+				RBN rbn = new RBN(K_avg, N, L, randomGenerator);
+				
+				//  Calculate the simulation result
+				performSimulation(dependentVariableType, rbn);
+				
+			}
+			
+			//  Write the average to the file
+			writeResultSetToFile(statMachine.getAverage());
+			statMachine.clear();
+
+			
+		}
+		else
+		{
+			//  Continue the recursion
+			loopThroughVariables(sweepingVariables, levelIndex + 1, dependentVariableType);
+			
+		}
+	}
+	
+}
+
+private void writeResultSetToFile(double result)
+{		
+		for(int i = 0; i < this.variableValues.length; i++)
+		{
+			
+			writer.print(variableValues[i] + ",");
+		}
+		
+		writer.println(Double.toString(result));
+		
+
+			
+}
+private void performSimulation(DependentVariableType dependentVariableType, RBN rbn)
+{	
+	switch(dependentVariableType)
+	{
+		case irreducibilityProbability:
+			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm())
+			//  Perform calculations because there are no other variables
+			{
+				statMachine.add(1);
+			}
+			else
+			{
+				statMachine.add(0);
+			}
+			return;
+			
+		case attractorCount:
+			FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+			ArrayList<Attractor> atrList = fsm.getAllAtractors_ViaAlgorithm();
+			if(!(atrList == null))
+			{
+				statMachine.add(atrList.size());
+			}
+			else
+			{
+				statMachine.add(0);
+			}
+			return;
+		case inAttractorProbabilityAfterInput:
+			FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+			ArrayList<Attractor> atrList = fsm.getAllAtractors_ViaAlgorithm();
+			int inputLength = this.variableValues[DiscreteVariableType.FSA_InputLength.id];
+			
+			if(!(atrList == null))
+			{
+				statMachine.add(atrList.size());
+			}
+			else
+			{
+				statMachine.add(0);
+			}
+			return;
+		case computationalCapability:
+			
+			int tau = this.variableValues[DiscreteVariableType.Tau.id];
+			int inputLength = this.variableValues[DiscreteVariableType.InputLength.id];
+			//  TODO:  Add ability to skew the input probabilities
+			ShannonSource ss = new ShannonSource(inputLength, 0.5f);
+			int[] inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
+			float computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
+			statMachine.add(computationalCapability);
+			return;
+		case dissipationBound:
+			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm())
+			{
+				double dissipation = RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(0.5f);
+				if(Double.isNaN(dissipation) | Double.isInfinite(dissipation))
+				{
+					System.out.println("Invalid Dissipation Bound!");
+					return;
+				}
+				else
+				{
+					statMachine.add(dissipation);
+				}
+				return;
+			}
+		case energyPerUnitCapability:
+		{
+			tau = this.variableValues[DiscreteVariableType.Tau.id];
+			ss = new ShannonSource(3, 0.5f);
+			inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
+			computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
+			double dissipation = RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(0.5f);
+			if(!(dissipation == -1))
+			{
+				if(!(computationalCapability == 0))
+				{
+				statMachine.add(dissipation / computationalCapability);
+				}
+			}
+			else
+			{
+				return;
+			}
+			
+		}
+		default:
+			return;
+	
+	}
+}
+
+//  Write Irreducible RBN stats to heat map
+public void writeIrreducibleToHeatmap()
+{
+	
+	// TODO
+}
+
+
+//  Generates a computational capability map for a specified K value ... 
+public void GenerateCCMap()
+{
+	int K_avg = 2;
+	int N = 500;
+	int L_Max = 500;
+	float chanceOf1 = 0.5f;
+	int tau_Max = 8;
+	int L_SkipValue = 100;
+	int averagingTotal = 50;
+	ShannonSource ss = new ShannonSource(10, chanceOf1);
+	CustomRandom randomGenerator = new CustomRandom();
+
+	ArrayList<ArrayList<DataPoint3D>> dataPoints = new ArrayList<ArrayList<DataPoint3D>>(); //  Two dimensional, the inner dimension is the x-axis data
+	
+	for (int L = 0; L <= L_Max; L += L_SkipValue)
+	{
+		ArrayList<DataPoint3D> xData = new ArrayList<DataPoint3D>();
+		for(int tau = 0; tau <= tau_Max; tau++)
+		{
+			float ccTotal = 0;
+			for(int i = 0; i < averagingTotal; i++)
+			{
+
+				RBN rbn =  new RBN(K_avg, N, L, randomGenerator);
+				int[] inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
+				float computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
+				ccTotal += computationalCapability;
+			}
+			
+			DataPoint3D dp3d = new DataPoint3D(tau, L, ccTotal / (float)50);
+			xData.add(dp3d);
+		}
+		dataPoints.add(xData);
+	}
+	
+	
+	
+	ChartGenerator.generateHeatMapFromDataPoint3DList(dataPoints, 0.25f); //  Subtract 1 because the loop added one during the last iteration
+}
+
+}
+
+enum DependentVariableType
+{
+	irreducibilityProbability, computationalCapability, dissipationBound, energyPerUnitCapability, inAttractorProbabilityAfterInput, attractorCount
+
+}

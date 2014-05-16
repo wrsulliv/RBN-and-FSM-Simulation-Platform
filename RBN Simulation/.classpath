@@ -9,6 +9,7 @@
 	<classpathentry kind="src" path="UserInterface"/>
 	<classpathentry kind="src" path="RBNClasses"/>
 	<classpathentry kind="src" path="FSMClasses"/>
+	<classpathentry kind="src" path="JamaSource"/>
 	<classpathentry kind="lib" path="forms-1.3.0.jar" sourcepath="forms-1.3.0-src.zip"/>
 	<classpathentry kind="lib" path="/Users/willimac/Downloads/ejml-0.24.jar"/>
 	<classpathentry kind="lib" path="/Users/willimac/Code/Java/Libraries/colt/lib/colt.jar"/>
@@ -30,7 +31,9 @@
 	<classpathentry kind="lib" path="/Users/willimac/Code/Java/Libraries/JUNG - Graphing Library/jung2-2_0_1/stax-api-1.0.1.jar"/>
 	<classpathentry kind="lib" path="/Users/willimac/Code/Java/Libraries/JUNG - Graphing Library/jung2-2_0_1/vecmath-1.3.1.jar"/>
 	<classpathentry kind="lib" path="/Users/willimac/Code/Java/Libraries/JUNG - Graphing Library/jung2-2_0_1/wstx-asl-3.2.6.jar"/>
+	<classpathentry kind="lib" path="Jama-1.0.3.jar" sourcepath="/Users/willimac/Downloads/Jama"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="Jama-1.0.3.jar" sourcepath="Jama"/>
+	<classpathentry kind="lib" path="/Users/willimac/Downloads/leores.jar"/>
+	<classpathentry kind="lib" path="/Users/willimac/Downloads/JavaGnuplotHybrid.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -1,0 +1,800 @@
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Paint;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import javax.swing.JFrame;
+
+import org.apache.commons.collections15.Transformer;
+import org.ejml.data.Complex64F;
+import org.ejml.data.DenseMatrix64F;
+import org.ejml.data.MatrixIterator;
+import org.ejml.factory.DecompositionFactory;
+import org.ejml.factory.EigenDecomposition;
+import org.ejml.simple.SimpleEVD;
+import org.ejml.simple.SimpleMatrix;
+import org.ejml.*;
+
+import Jama.EigenvalueDecomposition;
+import Jama.Matrix;
+import edu.uci.ics.jung.algorithms.layout.CircleLayout;
+import edu.uci.ics.jung.algorithms.layout.FRLayout2;
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.algorithms.layout.SpringLayout;
+import edu.uci.ics.jung.algorithms.layout.StaticLayout;
+import edu.uci.ics.jung.algorithms.util.IterativeContext;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
+import edu.uci.ics.jung.graph.Graph;
+import edu.uci.ics.jung.graph.SparseMultigraph;
+import edu.uci.ics.jung.graph.util.EdgeType;
+import edu.uci.ics.jung.visualization.BasicVisualizationServer;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
+
+//  Just an FSM, this has nothing to do with RBN, the conversion is done in a helper class
+//  This is the class for a Moore FSM
+public class FSM {
+
+	ArrayList<State> states;
+	//int numStates;
+
+	public FSM(int numStates, int numInputs)
+	{
+		this.states = new ArrayList<State>();
+		this.generateStates(numInputs, numStates);
+		
+	}
+	
+	//  Load the FSM from a file
+	public FSM(String csvFile)
+	{
+		this.states = new ArrayList<State>();
+		ArrayList<String[]> csvImport = MathHelper.spliceCSVToArrayList(csvFile);
+		for(int i = 0; i < csvImport.size(); i++)
+		{
+			State s = new State(1);
+			//  TODO:  Add support for non-binary states.
+			s.nextStateArray[0] = Integer.parseInt(csvImport.get(i)[1]);
+			s.nextStateArray[1] = Integer.parseInt(csvImport.get(i)[2]);
+			s.currentStateOutput = Integer.parseInt(csvImport.get(i)[3]);
+			this.states.add(s);
+			
+			
+		}
+	}
+	
+	//  Fun the FSA with a given initial state, and a given input string and give the state after the run
+	public int runInputString(int initialState, String inputString)
+	{
+		int[] inputStringArray = MathHelper.convertStringToIntArray(inputString);
+		int currentState = initialState;
+		for(int i : inputStringArray)
+		{
+			currentState = this.states.get(currentState).nextStateArray[i];
+		}
+		
+		return currentState;
+		
+	}
+	public ArrayList<Attractor> getAllAtractors()
+	{
+		//  Make a list which tells whether or not we've checked a state, default each entry to false
+		ArrayList<Boolean> checkedStates = new ArrayList<Boolean>();
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			checkedStates.add(false);
+		}
+		
+		//  Make a list of all the attractors
+		ArrayList<Attractor> attractors = new ArrayList<Attractor>();
+		
+		//  Loop through every state
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			if(!checkedStates.get(i))
+			{
+				//  Get the attractor the current state is in
+				Attractor atr = getAttractor(i);
+				
+				//  Mark this state as being checked
+				checkedStates.set(i, true);
+				
+				if(!(atr == null))
+				{
+					//  Check off the states we've found
+					for(int foundState : atr.subToParentStateMap.keySet())
+					{
+						checkedStates.set(foundState, true);
+					}	
+					
+					//  Add the attractor to the list of attractors
+					attractors.add(atr);
+				}
+				
+			}
+		}
+		
+		//  Return all the attractors
+		return attractors;
+	}
+	
+	//  Will give the sub FSA given the current state
+	public Attractor getAttractor(int currentState)
+	{
+
+		//  Create blank lists.
+		 ArrayList<Integer> stateChain = new ArrayList<Integer>();
+		 ArrayList<ArrayList<Integer>> solutionChains = new ArrayList<ArrayList<Integer>>();
+		 ArrayList<Integer> failStates = new ArrayList<Integer>();
+		 //  Find chains of states which lead from the starting state and lead back to the starting state
+		 depthFirst_FindSolutionChains(currentState, currentState, stateChain, solutionChains, failStates);
+		 
+		 //  Determine which states can be reached within this attractor
+		 ArrayList<Integer> solutionStates = new ArrayList<Integer>();
+		 for(ArrayList<Integer> solution : solutionChains)
+		 {
+			 for(int i : solution)
+			 {
+				 if(!solutionStates.contains(i))
+				 {
+					 solutionStates.add(i);
+				 }
+			 }
+		 }
+		 
+		 //  If there are no solutions, then return null
+		 if(solutionStates.size() == 0)
+		 {
+			 return null;
+		 }
+		 
+		 //  Determine if these solution states are an attractor by testing if there are any paths from any solutions state which
+		 //  leads to a state not in the set of solution states (A solution state is defined as a state capable of getting back to the 
+		 //  first state).  If some state does go to another state, that means it is not an attractor as there is a way out which does 
+		 //  not lead back to the first state.
+		 for(int i : solutionStates)
+		 {
+			 //  If state i leads to a state not in the set of solution states then...
+			 if(!(solutionStates.contains(this.states.get(i).nextStateArray[0])) | !(solutionStates.contains(this.states.get(i).nextStateArray[1])))
+			 {
+				 return null; //  This is not an attractor
+				 
+			 }
+		 }
+		 
+		 //  Now that we know we have an attractor, we can create a new FSA which acts as the irreducible attractor
+		 FSM fsm = new FSM(solutionStates.size(), 1);
+		 
+		 //  Create a mapping from the old state numbers to new state numbers
+		 HashMap<Integer, Integer> map = new HashMap<Integer, Integer>();
+		 int newIndex = 0;
+		 for(int i : solutionStates)
+		 {
+			 map.put(i, newIndex);
+			 newIndex++;
+		 }
+		 
+		 //  Loop through again, and assign to the FSA
+		 for(int i : solutionStates)
+		 {
+			 fsm.states.get(map.get(i)).nextStateArray[0] = map.get(this.states.get(i).nextStateArray[0]);
+			 fsm.states.get(map.get(i)).nextStateArray[1] = map.get(this.states.get(i).nextStateArray[1]);
+		 }
+		
+		return new Attractor(this, fsm, map); 
+		
+	}
+	
+	//  This function will return a set of paths from the current state, back to the current state.  It will include all possible paths.
+	private void depthFirst_FindSolutionChains(int currentState, int goalState, ArrayList<Integer> stateChain, ArrayList<ArrayList<Integer>> solutionChains, ArrayList<Integer> failStates)
+	{
+	
+		//  Check if this node has already been checked as a failure node
+		if(failStates.contains(currentState))
+		{
+			return;
+		}
+		
+		//  Check if the node is the goal (cannot be when we are at the starting state, because the goal and start are the same)
+		if((currentState == goalState) & (stateChain.size() > 0))
+		{
+			//  Clone the stateChain and add it to the solutionChains list
+			solutionChains.add(cloneArrayList(stateChain));
+			return;
+		}
+		
+		//  Check if the node was already expanded and it's not the goal
+		if(stateChain.contains(currentState))
+		{
+			return; //  Node already expanded, keep going!
+		}
+		
+		//  Add the current state to stateChain
+		stateChain.add(currentState);
+		
+		//  Remember the solution chain size
+		int solutionSize = solutionChains.size();
+		
+		//  Expand the current state
+		int node1 = states.get(currentState).nextStateArray[0];
+		depthFirst_FindSolutionChains(node1, goalState, stateChain, solutionChains, failStates);
+		
+		int node2 = states.get(currentState).nextStateArray[1];
+		depthFirst_FindSolutionChains(node2, goalState, stateChain, solutionChains, failStates);
+		
+		//  Remove the current state from stateChain
+		stateChain.remove(stateChain.size() - 1); //  Remove the last element from the state chain
+		
+		//  If the stateChain size has not changed, then this node should not be checked again as it will fail
+		if(solutionChains.size() == solutionSize)
+		{
+			failStates.add(currentState);
+		}
+		
+	}
+	
+	private ArrayList<Integer> cloneArrayList(ArrayList<Integer> original)
+	{
+		ArrayList<Integer> clonedList = new ArrayList<Integer>();
+		for(int i = 0; i < original.size(); i++)
+		{
+			clonedList.add(original.get(i));
+		}
+		return clonedList;
+	}
+	public boolean isIrreducibleViaAlgorithm()
+	{
+		//  How to use the SimpleMatrix methods:
+		// set( row , col , value )
+
+		//  Algorithm Definitions and Summary:
+		//  S0 = The current state
+		//  S1 = The set of state S0 can go to
+		//  S2 = The set of states some S1 can go to
+		//  Create the matrix which will hold the state transitions.  This table is initialized to all 0's so that
+		//  it can be filled in sequentially.  By doing this, we will be guaranteed that when checking S2, it will hold all possible
+		//  states S0 can hope to reach through S1.  In other words, S2 has absorbed all values of S(2+n).
+		Matrix m = new Matrix(this.states.size(), this.states.size());
+		
+		
+		
+		//  Loop through each state, and  perform the irreducibility algorithm
+		for(int i = 0; i < this.states.size(); i++)
+		{
+				
+			
+			m.set(i, states.get(i).nextStateArray[0], 1);
+			updateState_S0_ThroughState_S1_(m, i, states.get(i).nextStateArray[0]);
+			
+			m.set(i, states.get(i).nextStateArray[1], 1);
+			updateState_S0_ThroughState_S1_(m, i, states.get(i).nextStateArray[1]);
+			
+			stateTransitionDidChange(m, i);
+			
+		}
+		
+		//  Check to see if it's irreducible
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			
+			for(int j = 0; j < this.states.size(); j++)
+			{
+				
+				if(m.get(i, j) == 0)
+				{
+					
+					//  If there is a zero in the transition matrix, then return false (not-irreducible)
+					return false;
+				}
+			}
+		}
+		
+		// If there are no zeros in the transition matrix then return true (irreducible)
+		return true;
+		
+	}
+	
+	
+	//  Called when a state's transition row changes.  Loops through all other states to see if they depend on 'changedState'.
+	//  If they do, then the state with the dependency is updated via 'updateState_S0_ThroughState_S1_'.  Where S0 is the state
+	//  with the dependency (state which leads to 'changedStates'), and S1 is 'changedState'
+	private void stateTransitionDidChange(Matrix m, int changedState)
+	{
+
+		
+		//  Loop through every state and check if it needs to be changed, if so, change it and call stateTransitionDidChange recursively
+		for(int i = 0; i < this.states.size(); i++)
+		{
+				//  If state 'i' goes to state 'changedState' then update state 'i'
+				if(m.get(i, changedState) == 1)
+				{
+					updateState_S0_ThroughState_S1_(m, i, changedState);
+					
+					//  break the inner loop because the entire state will be changed for all values of j which are not correct
+					//break;
+				}
+			
+		}
+		
+	}
+	
+	//  Will update state S0 with the new states S1 can goto (it's assumed that S0 can get to S1)
+	private void updateState_S0_ThroughState_S1_(Matrix m, int S0, int S1)
+	{
+		
+		//  Keep a boolean to see whether or not S0 actually changes
+		boolean hasS0Changed = false;
+		
+		//  Loop through each state in S0 and find states which are not connected
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			//  If S0 is not connected then...
+			if(m.get(S0, i) == 0)
+			{
+				//  If S1 (the state we are currently checking, which S0 goes through) can lead S0 to state i then...
+				if(m.get(S1, i) == 1)
+				{
+					//  Mark that S0 can be connected to state i
+					m.set(S0, i, 1);
+					
+					//  Mark S0 as being changed
+					hasS0Changed = true;
+					
+				}
+				
+			}
+			
+		}
+		
+		if(hasS0Changed)
+		{
+			// Since state S0 has changed, call 'stateTransitionDidChange' on S0
+			stateTransitionDidChange(m, S0);
+		}
+	}
+	
+	public void showVisualizationWithAllAtractors()
+	{
+		// Graph<V, E> where V is the type of the vertices 
+		 // and E is the type of the edges
+		 Graph<Integer, String> g = new DirectedSparseMultigraph<Integer, String>();
+		 
+		 // Add as many vertices as there are states
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addVertex(i);
+		 }
+
+		 
+		 //  Loop through and add edges to the graph
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addEdge(Integer.toString(i) + "0",  i, this.states.get(i).nextStateArray[0], EdgeType.DIRECTED);
+			 g.addEdge(Integer.toString(i) + "1",  i, this.states.get(i).nextStateArray[1], EdgeType.DIRECTED);
+			 
+		 }
+
+		 
+		 //  Get all the attractors
+		 ArrayList<Attractor> atrList = this.getAllAtractors();
+		 
+		 //  Set style properties for the graph
+		 Transformer<Integer,Paint> vertexPaint = new VertexPaint_AllAttractors(atrList);
+
+		 
+		 
+		// The Layout<V, E> is parameterized by the vertex and edge types
+		Layout<Integer, String> layout = new SpringLayout<Integer, String>(g);
+		layout.setSize(new Dimension(750,750)); // sets the initial size of the space
+		// The BasicVisualizationServer<V,E> is parameterized by the edge types
+		VisualizationViewer<Integer,String> vv = 
+				 new VisualizationViewer<Integer,String>(layout);
+
+
+		vv.setPreferredSize(new Dimension(750,750)); //Sets the viewing area size
+		vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+
+		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+		 vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR); 
+
+		 
+		JFrame frame = new JFrame("Simple Graph View");
+		DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+		 gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+		 vv.setGraphMouse(gm); 
+			vv.setBackground(Color.WHITE);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		frame.getContentPane().add(vv);
+		frame.pack();
+		frame.setVisible(true);	
+	}
+	public void showFSMVisualizationWithAttractor(Attractor atr)
+	{
+		// Graph<V, E> where V is the type of the vertices 
+		 // and E is the type of the edges
+		 Graph<Integer, String> g = new DirectedSparseMultigraph<Integer, String>();
+		 
+		 // Add as many vertices as there are states
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addVertex(i);
+		 }
+
+		 
+		 //  Loop through and add edges to the graph
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addEdge(Integer.toString(i) + "0",  i, this.states.get(i).nextStateArray[0], EdgeType.DIRECTED);
+			 g.addEdge(Integer.toString(i) + "1",  i, this.states.get(i).nextStateArray[1], EdgeType.DIRECTED);
+			 
+		 }
+
+		 
+		 //  Set style properties for the graph
+		 Transformer<Integer,Paint> vertexPaint = new VertexPaint_SingleAttractor(atr);
+
+		 
+		 
+		// The Layout<V, E> is parameterized by the vertex and edge types
+		Layout<Integer, String> layout = new SpringLayout<Integer, String>(g);
+		layout.setSize(new Dimension(750,750)); // sets the initial size of the space
+		// The BasicVisualizationServer<V,E> is parameterized by the edge types
+		VisualizationViewer<Integer,String> vv = 
+				 new VisualizationViewer<Integer,String>(layout);
+
+
+		vv.setPreferredSize(new Dimension(750,750)); //Sets the viewing area size
+		vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+
+		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+		 vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR); 
+
+		 
+		JFrame frame = new JFrame("Simple Graph View");
+		DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+		 gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+		 vv.setGraphMouse(gm); 
+			vv.setBackground(Color.WHITE);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		frame.getContentPane().add(vv);
+		frame.pack();
+		frame.setVisible(true);
+	}
+	public void showFSMVisualization()
+	{
+		
+		// Graph<V, E> where V is the type of the vertices 
+		 // and E is the type of the edges
+		 Graph<Integer, String> g = new DirectedSparseMultigraph<Integer, String>();
+		 
+		 // Add as many vertices as there are states
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addVertex(i);
+		 }
+
+		 
+		 //  Loop through and add edges to the graph
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addEdge(Integer.toString(i) + "0",  i, this.states.get(i).nextStateArray[0], EdgeType.DIRECTED);
+			 g.addEdge(Integer.toString(i) + "1",  i, this.states.get(i).nextStateArray[1], EdgeType.DIRECTED);
+			 
+		 }
+
+		 
+		 //  Set style properties for the graph
+		 Transformer<Integer,Paint> vertexPaint = new Transformer<Integer,Paint>() {
+			 public Paint transform(Integer i) {
+			 return Color.GREEN;
+			 }
+			 }; 
+
+		 
+		 
+		// The Layout<V, E> is parameterized by the vertex and edge types
+		Layout<Integer, String> layout = new SpringLayout<Integer, String>(g);
+		layout.setSize(new Dimension(750,750)); // sets the initial size of the space
+		// The BasicVisualizationServer<V,E> is parameterized by the edge types
+		VisualizationViewer<Integer,String> vv = 
+				 new VisualizationViewer<Integer,String>(layout);
+
+
+		vv.setPreferredSize(new Dimension(750,750)); //Sets the viewing area size
+		vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+
+		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+		 vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR); 
+
+		 
+		JFrame frame = new JFrame("Simple Graph View");
+		DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+		 gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+		 vv.setGraphMouse(gm); 
+			vv.setBackground(Color.WHITE);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		frame.getContentPane().add(vv);
+		frame.pack();
+		frame.setVisible(true);
+	}
+	public void generateStates(int numInputs, int numStates)
+	{
+		for(int i = 0; i < numStates; i++)
+		{
+			states.add(new State(numInputs));
+			
+		}
+	}
+	
+	public double getEnergyDissipation(double probabilityOfZero)
+	{
+		//double boltzmannConstant = 1.3806488f*Math.pow(10, -23);
+		double entropy = getShannonEntropy(probabilityOfZero, false);
+		return entropy;
+		
+	}
+	
+	//  Gets a list of states which lead to i with an input of j
+	private ArrayList<Integer> getStatesWhichLeadToiWithInputj(int i, int j)
+	{
+		//  Create the actual list which will hold the states which lead to i with input j
+		ArrayList<Integer> statesWhichLeadToiWithInputj = new ArrayList<Integer>();
+		
+		// Show where each state goes with an input of j
+		Matrix transitionTable = convertToMatrixConditionedOnInput(j);
+		
+		//  Loop through the column and add every row index to the list
+		for(int row = 0; row < transitionTable.getRowDimension(); row++)
+		{
+			if(transitionTable.get(row, i) > 0)
+			{
+				statesWhichLeadToiWithInputj.add(row);
+			}
+		}
+		
+		return statesWhichLeadToiWithInputj;
+		
+	}
+	
+	private double getProbabilityWeWereInStateLGivenThatWeAreNowInSViaInputj(int L, int S, int j, Matrix steadyStateOccupationVector)
+	{
+		 //  Get a list of the possible states which could have lead to S
+		 ArrayList<Integer> statesWhichLeadToSWithInputj = getStatesWhichLeadToiWithInputj(S, j);
+		 
+		//  Get the probability we were in state L
+		 double probabiltyWeWereInStateL = steadyStateOccupationVector.get(L, 0);
+		 
+		 double sumOfProbablitiesOfStatesLeadingToS = 0;
+		 for(int stateLeadingToS : statesWhichLeadToSWithInputj)
+		 {
+			 sumOfProbablitiesOfStatesLeadingToS += steadyStateOccupationVector.get(stateLeadingToS, 0);
+		 }
+
+		 //  Return the normalized probablity
+		 return probabiltyWeWereInStateL / sumOfProbablitiesOfStatesLeadingToS;
+		 
+	}
+	
+	private double getShannonEntropy(double probOfZero, boolean printErrors)
+	{
+		ArrayList<Matrix> sm = getEigenVectorsForEigenValueOne(probOfZero, printErrors);
+		Matrix steadyStateOccupationVector;
+
+		steadyStateOccupationVector = sm.get(0);
+
+		double informationLoss = 0;
+		//  Loop over the possible inputs
+		for(int j = 0; j < 2; j++)
+		{
+			//  Loop through the possible final states
+			double sumOfStates = 0;
+			for(int i = 0; i < this.states.size(); i++)
+			{
+				double entropiesOfStatesWhichLeadtoi = 0;
+				//  Loop over states which lead to i
+				ArrayList<Integer> statesWhichLeadToi = getStatesWhichLeadToiWithInputj(i, j);
+				for(int L : statesWhichLeadToi)
+				{
+					double probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj = getProbabilityWeWereInStateLGivenThatWeAreNowInSViaInputj(L, i, j, steadyStateOccupationVector);
+					
+					//  Compute the Entropy
+					double entropy = probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj * NonInfiniteLog(probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj);
+					entropiesOfStatesWhichLeadtoi += entropy;
+				}
+				
+				sumOfStates += entropiesOfStatesWhichLeadtoi;
+			}
+			informationLoss += sumOfStates*-1*probOfZero;
+		}
+		
+		return informationLoss;
+		
+	}
+	
+
+	
+	
+	private double NonInfiniteLog(double input)
+	{
+		if(input == 0)
+		{
+			return 0;
+		}
+		else
+		{
+			return Math.log(input) / Math.log(2);
+		}
+	}
+	public Matrix convertToMatrix(double probOfZero)
+	{
+
+		//  Convert the states list to an array to be transformed into a Matrix
+		//  TODO:  Actually use the probability of zero properly, right now we assume .5 for both and 1
+		double[][] fsmArray = new double[states.size()][states.size()];
+		for(int i = 0; i < states.size(); i++) //  Loop through array where i is the row which represents a given state, such that the 
+			//  number in the ith row and jth column is the conditional probability of getting to state j given we are in state i in only one step.
+		{
+			if(states.get(i).nextStateArray[0] == states.get(i).nextStateArray[1])
+			{
+				fsmArray[i][states.get(i).nextStateArray[0]] = 1;
+				
+			}
+			else
+			{
+				fsmArray[i][states.get(i).nextStateArray[0]] = probOfZero;
+				fsmArray[i][states.get(i).nextStateArray[1]] = 1 - probOfZero;
+				
+			}
+		}
+		
+		Matrix m = new Matrix(fsmArray);
+		return m;
+		
+	}
+	
+	public Matrix convertToMatrixConditionedOnInput(int input)
+	{
+
+		//  Convert the states list to an array to be transformed into a SimpleMatrix
+		double[][] fsmArray = new double[states.size()][states.size()];
+		
+		for(int i = 0; i < states.size(); i++) //  Loop through array where i is the row which represents a given state, such that the 
+			//  number in the ith row and jth column is the conditional probability of getting to state j given we are in state i in only one step.
+		{
+				fsmArray[i][states.get(i).nextStateArray[input]] = 1;
+		}
+		
+		Matrix m = new Matrix(fsmArray);
+		return m;
+		
+	}
+	
+	
+	public ArrayList<Matrix> getEigenVectorsForEigenValueOne(double probOfZero, boolean printErrors)
+	{
+		//showFSMVisualization();
+		Matrix transitionMatrix = convertToMatrix(probOfZero);  //  Create the transition matrix of the FSM
+		Matrix transposedTransitionMatrix = transitionMatrix.transpose(); //  transpose to compute the left hand eigen vectors
+		
+		EigenvalueDecomposition ed = transposedTransitionMatrix.eig();
+
+		ArrayList<Matrix> vecList = new ArrayList<Matrix>();
+		double[] eigenValueList = ed.getRealEigenvalues();
+		for(int i = 0; i < eigenValueList.length; i++)
+		{
+
+			double eigenValue = eigenValueList[i]; 
+			
+			if((eigenValue < 1.00001f) & (eigenValue > .9999f)) //  Should be 1, but floating point errors occur
+			{
+				
+				//  Get the Eigen Vectors
+				Matrix vec = ed.getV().getMatrix(0, ed.getV().getRowDimension() - 1, i, i);
+				
+				
+				//  Sum the elements in the Eigenvector to normalize later
+				double eigenvectorSum = 0;
+				try
+				{
+				for (int j = 0; j < vec.getRowDimension(); j++)
+				{
+					eigenvectorSum += vec.get(j, 0);	
+	
+				}
+				}
+				catch(Exception ex)
+				{
+					
+					int y = 0;
+				}
+
+				//  Normalize the Eigenvectors
+				for (int j = 0; j < vec.getRowDimension(); j++)
+				{
+					double value = vec.get(j,  0) / eigenvectorSum;
+					vec.set(j, 0, value);	
+	
+				}
+
+				
+				//  Add the Eigen vector to the list
+				vecList.add(vec);
+				
+			}
+		}
+		
+		return vecList;
+		
+	}
+	
+	public boolean isIrreducible(double probOfZero)
+	{
+		ArrayList<Matrix> vectors = getEigenVectorsForEigenValueOne(probOfZero, false);
+		if(!(vectors.size() == 1))
+		{
+			return false;
+		}
+		
+
+		for(int i = 0; i < vectors.get(0).getRowDimension(); i++)
+		{
+			
+			//  Check for self loops.  We only want truly irreducible networks in the sense that any node can reach any other node
+			if(vectors.get(0).get(i, 0) == 0)
+			{
+				return false;
+			}
+		}
+
+		
+		return true;
+		
+		
+	}
+	
+	//  Write state transition table to a file
+	public void writeToFile(String fileName)
+	{
+		PrintWriter writer;
+		try {
+				writer = new PrintWriter(fileName, "UTF-8");
+				for(int i = 0; i < states.size(); i++)
+				{
+					//  TODO:  Add support for non-binary states
+					writer.print(Integer.toString(i) + ","); // Write the state
+					writer.print(Integer.toString(states.get(i).nextStateArray[0]) + ","); // Write the 0 input state transition
+					writer.print(Integer.toString(states.get(i).nextStateArray[1]) + ","); // Write the 1 input state transition
+					writer.print(Integer.toString(states.get(i).currentStateOutput) + ","); // Write the current state output
+					writer.print("\n");
+				}
+				
+				writer.close();
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	
+	
+}

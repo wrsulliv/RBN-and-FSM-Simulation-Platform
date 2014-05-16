@@ -1,0 +1,26 @@
+import java.awt.Color;
+import java.awt.Paint;
+
+import org.apache.commons.collections15.Transformer;
+
+
+public class VertexPaint_AllAttractors implements Transformer<Integer,Paint>{
+
+	 public Attractor atr;
+	 public VertexPaint_AllAttractors(Attractor atr)
+	 {
+		 this.atr = atr;
+	 }
+	 public Paint transform(Integer i) 
+	 {
+		 if(atr.subToParentStateMap.containsKey(i))
+		 {
+			 return Color.RED;
+		 }
+		 else
+		 {
+			 return Color.GREEN; 
+		 }
+	 }
+}
+

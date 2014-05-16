@@ -1,0 +1,38 @@
+#makefile
+#
+#Written by: William R. Sullivan
+#
+# This makefile is for the non-gui portion of the RBN Simulator
+#  You may need to add more sources with the build
+
+.SUFFIXES: .java .class 
+SOURCES = *.java
+CLASSES = *.class
+
+#This will compile your code via command line
+#List files needed for compiling at the end of the next line
+compileProg:	$(SOURCES)
+
+
+#List all command line entries (in order) that will compile the entire code
+#Remember to press tab twice at the start of each command               
+		echo "Compiling - place command line code for compiling below"
+		javac $(SOURCES)
+
+#This will run your code via command line with standard input and output handled
+#(You will use the variables specified below for stdin and stdout)
+stdinFile = infile.txt
+stdoutFile = outfile.txt
+#List files needed for running at the end of the next line
+runProg:	$(CLASSES)
+#List all command line entries (in order) that will run the code
+#Remember to press tab twice at the start of each command
+		echo "Running:"
+		java runner > $(stdoutFile)
+
+#This will remove the compiled files to allow a fresh compile (sometimes make thinks everything is up-to-date when it's not)
+clean:  
+#List each rm statement to remove executable and object files; be careful
+#Remember to press tab twice at the start of each command
+		echo "Cleaning:"
+		rm $(CLASSES)

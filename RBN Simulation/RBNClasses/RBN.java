@@ -1,5 +1,8 @@
 import java.util.ArrayList;
 import java.util.Random;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Paint;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -12,6 +15,20 @@ import java.io.FileReader;
 import java.io.IOException;
 
 import javax.imageio.ImageIO;
+import javax.swing.JFrame;
+
+import org.apache.commons.collections15.Transformer;
+
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.algorithms.layout.SpringLayout;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
+import edu.uci.ics.jung.graph.Graph;
+import edu.uci.ics.jung.graph.util.EdgeType;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
 
 public class RBN implements Serializable {
 
@@ -38,6 +55,9 @@ public class RBN implements Serializable {
 		setupNodeLogicFunctions();
 		
 	}
+	
+
+	
 	
 	//  Get an Integer array representing the state of the internal nodes
 	public int[] getInternalState()
@@ -128,13 +148,13 @@ public class RBN implements Serializable {
 	public static float calculateSeparation(RBN m, int tau, int[] inputString)
 	{
 		//  Get the number of digits which should be different
-		int numberOfSimilar = inputString.length - tau;
+		int numberOfDiffering = inputString.length - tau;
 		
 		//  Calculate the complimentary input string
 		int[] newInputString = new int[inputString.length];
 		for(int i = 0; i < inputString.length; i++)
 		{
-			if(i < numberOfSimilar)
+			if(i < numberOfDiffering)
 			{
 				newInputString[i] = Math.abs(inputString[i] - 1);
 			}

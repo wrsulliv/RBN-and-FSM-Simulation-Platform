@@ -47,7 +47,7 @@ public class IrreducibleRBNManager {
 		while(true)
 		{
 			RBN rbn = new RBN(K_avg, N, L, randomGenerator);
-			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducible(0.5f)) //  This test should work for all probOfZero > 0
+			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm()) //  This test should work for all probOfZero > 0
 			{				
 				System.out.println("IRBNs Discovered: " + Integer.toString(rbnList.size()));
 				rbnList.add(rbn);

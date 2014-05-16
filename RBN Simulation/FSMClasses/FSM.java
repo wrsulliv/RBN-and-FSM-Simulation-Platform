@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.swing.JFrame;
 
@@ -69,6 +70,242 @@ public class FSM {
 		}
 	}
 	
+	//  Fun the FSA with a given initial state, and a given input string and give the state after the run
+	public int runInputString(int initialState, String inputString)
+	{
+		int[] inputStringArray = MathHelper.convertStringToIntArray(inputString);
+		int currentState = initialState;
+		for(int i : inputStringArray)
+		{
+			currentState = this.states.get(currentState).nextStateArray[i];
+		}
+		
+		return currentState;
+		
+	}
+	//  Uses the Eigenvalue / Eigenvector method to retreive attractors - I realized I could use the steady state occupation vector
+	//  After creating the algorithmic method... 
+	public ArrayList<ArrayList<Integer>> getAllAtractors()
+	{
+		//  Get the Eigenvectors
+		ArrayList<Matrix> matList = this.getEigenVectorsForEigenValueOne(0.05f, true);
+		
+		//  Make a list where each element is a set of attractors.  The states in each matrix must be greater than 
+		//  the 0.00001f threshold.
+		ArrayList<ArrayList<Integer>> atrList = new ArrayList<ArrayList<Integer>>();
+		for(Matrix m : matList)
+		{
+			ArrayList<Integer> attractor = new ArrayList<Integer>();
+			for(int j = 0; j < m.getColumnDimension(); j++)
+			{
+				if(m.get(0, j) > 0.00001f)
+				{
+					attractor.add(j);
+				}
+			}
+			
+			atrList.add(attractor);
+		}
+		
+		return atrList;
+		
+		
+	}
+	
+	public boolean isStateInAttractor(int state)
+	{
+		ArrayList<ArrayList<Integer>> atrList = getAllAtractors();
+		for(ArrayList<Integer> atrStates : atrList)
+		{
+			for(int atrState : atrStates)
+			{
+				if(state == atrState)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	public ArrayList<Attractor> getAllAtractors_ViaAlgorithm()
+	{
+		//  Make a list which tells whether or not we've checked a state, default each entry to false
+		ArrayList<Boolean> checkedStates = new ArrayList<Boolean>();
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			checkedStates.add(false);
+		}
+		
+		//  Make a list of all the attractors
+		ArrayList<Attractor> attractors = new ArrayList<Attractor>();
+		
+		//  Loop through every state
+		for(int i = 0; i < this.states.size(); i++)
+		{
+			if(!checkedStates.get(i))
+			{
+				//  Get the attractor the current state is in
+				Attractor atr = getAttractor_ViaAlgorithm(i);
+				
+				//  Mark this state as being checked
+				checkedStates.set(i, true);
+				
+				if(!(atr == null))
+				{
+					//  Check off the states we've found
+					for(int foundState : atr.subToParentStateMap.keySet())
+					{
+						checkedStates.set(foundState, true);
+					}	
+					
+					//  Add the attractor to the list of attractors
+					attractors.add(atr);
+				}
+				
+			}
+		}
+		
+		//  Return all the attractors
+		return attractors;
+	}
+	
+	//  Will give the sub FSA given the current state
+	public Attractor getAttractor_ViaAlgorithm(int currentState)
+	{
+
+		//  Create blank lists.
+		 ArrayList<Integer> stateChain = new ArrayList<Integer>();
+		 ArrayList<ArrayList<Integer>> solutionChains = new ArrayList<ArrayList<Integer>>();
+		 ArrayList<Integer> failStates = new ArrayList<Integer>();
+		 ArrayList<Integer> successStates = new ArrayList<Integer>();
+		 //  Find chains of states which lead from the starting state and lead back to the starting state
+		 depthFirst_FindSolutionChains(currentState, currentState, stateChain, solutionChains, failStates, successStates);
+		 
+		 //  Determine which states can be reached within this attractor
+		 ArrayList<Integer> solutionStates = new ArrayList<Integer>();
+		 for(ArrayList<Integer> solution : solutionChains)
+		 {
+			 for(int i : solution)
+			 {
+				 if(!solutionStates.contains(i))
+				 {
+					 solutionStates.add(i);
+				 }
+			 }
+		 }
+		 
+		 //  If there are no solutions, then return null
+		 if(solutionStates.size() == 0)
+		 {
+			 return null;
+		 }
+		 
+		 //  Determine if these solution states are an attractor by testing if there are any paths from any solutions state which
+		 //  leads to a state not in the set of solution states (A solution state is defined as a state capable of getting back to the 
+		 //  first state).  If some state does go to another state, that means it is not an attractor as there is a way out which does 
+		 //  not lead back to the first state.
+		 for(int i : solutionStates)
+		 {
+			 //  If state i leads to a state not in the set of solution states then...
+			 if(!(solutionStates.contains(this.states.get(i).nextStateArray[0])) | !(solutionStates.contains(this.states.get(i).nextStateArray[1])))
+			 {
+				 return null; //  This is not an attractor
+				 
+			 }
+		 }
+		 
+		 //  Now that we know we have an attractor, we can create a new FSA which acts as the irreducible attractor
+		 FSM fsm = new FSM(solutionStates.size(), 1);
+		 
+		 //  Create a mapping from the old state numbers to new state numbers
+		 HashMap<Integer, Integer> map = new HashMap<Integer, Integer>();
+		 int newIndex = 0;
+		 for(int i : solutionStates)
+		 {
+			 map.put(i, newIndex);
+			 newIndex++;
+		 }
+		 
+		 //  Loop through again, and assign to the FSA
+		 for(int i : solutionStates)
+		 {
+			 fsm.states.get(map.get(i)).nextStateArray[0] = map.get(this.states.get(i).nextStateArray[0]);
+			 fsm.states.get(map.get(i)).nextStateArray[1] = map.get(this.states.get(i).nextStateArray[1]);
+		 }
+		
+		return new Attractor(this, fsm, map); 
+		
+	}
+	
+	//  This function will return a set of paths from the current state, back to the current state.  It will inclode all possible nodes, but some paths will end at nodes which are known to complete the path 
+	//  from previous iterations.  So, not all paths may be complete.
+	private void depthFirst_FindSolutionChains(int currentState, int goalState, ArrayList<Integer> stateChain, ArrayList<ArrayList<Integer>> solutionChains, ArrayList<Integer> failStates, ArrayList<Integer> successStates)
+	{
+	
+		//  Check if this node has already been checked as a failure node
+		if(failStates.contains(currentState))
+		{
+			return;
+		}
+		
+		//  Check if this node has already been checked as a success node
+		if(successStates.contains(currentState))
+		{
+			solutionChains.add(cloneArrayList(stateChain));
+			return;
+		}
+		
+		//  Check if the node is the goal (cannot be when we are at the starting state, because the goal and start are the same)
+		if((currentState == goalState) & (stateChain.size() > 0))
+		{
+			//  Clone the stateChain and add it to the solutionChains list
+			solutionChains.add(cloneArrayList(stateChain));
+			return;
+		}
+		
+		//  Check if the node was already expanded and it's not the goal
+		if(stateChain.contains(currentState))
+		{
+			return; //  Node already expanded, keep going!
+		}
+		
+		//  Add the current state to stateChain
+		stateChain.add(currentState);
+		
+		//  Remember the solution chain size
+		int solutionSize = solutionChains.size();
+		
+		//  Expand the current state
+		int node1 = states.get(currentState).nextStateArray[0];
+		depthFirst_FindSolutionChains(node1, goalState, stateChain, solutionChains, failStates, successStates);
+		
+		int node2 = states.get(currentState).nextStateArray[1];
+		depthFirst_FindSolutionChains(node2, goalState, stateChain, solutionChains, failStates, successStates);
+		
+		//  Remove the current state from stateChain
+		stateChain.remove(stateChain.size() - 1); //  Remove the last element from the state chain
+		
+		//  If the stateChain size has not changed, then this node should not be checked again as it will fail
+		if(solutionChains.size() == solutionSize)
+		{
+			failStates.add(currentState);
+		}
+		else
+		{
+			successStates.add(currentState);
+		}
+		
+	}
+	
+	private ArrayList<Integer> cloneArrayList(ArrayList<Integer> original)
+	{
+		ArrayList<Integer> clonedList = new ArrayList<Integer>();
+		for(int i = 0; i < original.size(); i++)
+		{
+			clonedList.add(original.get(i));
+		}
+		return clonedList;
+	}
 	public boolean isIrreducibleViaAlgorithm()
 	{
 		//  How to use the SimpleMatrix methods:
@@ -100,6 +337,7 @@ public class FSM {
 			
 		}
 		
+		//  Check to see if it's irreducible
 		for(int i = 0; i < this.states.size(); i++)
 		{
 			
@@ -179,6 +417,119 @@ public class FSM {
 		}
 	}
 	
+	public void showVisualizationWithAllAtractors()
+	{
+		// Graph<V, E> where V is the type of the vertices 
+		 // and E is the type of the edges
+		 Graph<Integer, String> g = new DirectedSparseMultigraph<Integer, String>();
+		 
+		 // Add as many vertices as there are states
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addVertex(i);
+		 }
+
+		 
+		 //  Loop through and add edges to the graph
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addEdge(Integer.toString(i) + "0",  i, this.states.get(i).nextStateArray[0], EdgeType.DIRECTED);
+			 g.addEdge(Integer.toString(i) + "1",  i, this.states.get(i).nextStateArray[1], EdgeType.DIRECTED);
+			 
+		 }
+
+		 
+		 //  Get all the attractors
+		 ArrayList<Attractor> atrList = this.getAllAtractors_ViaAlgorithm();
+		 
+		 //  Set style properties for the graph
+		 Transformer<Integer,Paint> vertexPaint = new VertexPaint_AllAttractors(atrList);
+
+		 
+		 
+		// The Layout<V, E> is parameterized by the vertex and edge types
+		Layout<Integer, String> layout = new SpringLayout<Integer, String>(g);
+		layout.setSize(new Dimension(750,750)); // sets the initial size of the space
+		// The BasicVisualizationServer<V,E> is parameterized by the edge types
+		VisualizationViewer<Integer,String> vv = 
+				 new VisualizationViewer<Integer,String>(layout);
+
+
+		vv.setPreferredSize(new Dimension(750,750)); //Sets the viewing area size
+		vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+
+		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+		 vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR); 
+
+		 
+		JFrame frame = new JFrame("Simple Graph View");
+		DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+		 gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+		 vv.setGraphMouse(gm); 
+			vv.setBackground(Color.WHITE);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		frame.getContentPane().add(vv);
+		frame.pack();
+		frame.setVisible(true);	
+	}
+	public void showFSMVisualizationWithAttractor(Attractor atr)
+	{
+		// Graph<V, E> where V is the type of the vertices 
+		 // and E is the type of the edges
+		 Graph<Integer, String> g = new DirectedSparseMultigraph<Integer, String>();
+		 
+		 // Add as many vertices as there are states
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addVertex(i);
+		 }
+
+		 
+		 //  Loop through and add edges to the graph
+		 for(int i = 0; i < this.states.size(); i++)
+		 {
+			 
+			 g.addEdge(Integer.toString(i) + "0",  i, this.states.get(i).nextStateArray[0], EdgeType.DIRECTED);
+			 g.addEdge(Integer.toString(i) + "1",  i, this.states.get(i).nextStateArray[1], EdgeType.DIRECTED);
+			 
+		 }
+
+		 
+		 //  Set style properties for the graph
+		 Transformer<Integer,Paint> vertexPaint = new VertexPaint_SingleAttractor(atr);
+
+		 
+		 
+		// The Layout<V, E> is parameterized by the vertex and edge types
+		Layout<Integer, String> layout = new SpringLayout<Integer, String>(g);
+		layout.setSize(new Dimension(750,750)); // sets the initial size of the space
+		// The BasicVisualizationServer<V,E> is parameterized by the edge types
+		VisualizationViewer<Integer,String> vv = 
+				 new VisualizationViewer<Integer,String>(layout);
+
+
+		vv.setPreferredSize(new Dimension(750,750)); //Sets the viewing area size
+		vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+
+		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+		 vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR); 
+
+		 
+		JFrame frame = new JFrame("Simple Graph View");
+		DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+		 gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+		 vv.setGraphMouse(gm); 
+			vv.setBackground(Color.WHITE);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		frame.getContentPane().add(vv);
+		frame.pack();
+		frame.setVisible(true);
+	}
 	public void showFSMVisualization()
 	{
 		
@@ -248,6 +599,23 @@ public class FSM {
 		}
 	}
 	
+	public double getEnergyDissipatedOnTransition(int initialState, int finalState, int input)
+	{
+		//  Create a state occupation vector with 
+		double entropiesOfStatesWhichLeadtoFinalState = 0;
+		//  Loop over states which lead to i
+		ArrayList<Integer> statesWhichLeadToFinalState = getStatesWhichLeadToiWithInputj(finalState, input);
+		for(int L : statesWhichLeadToFinalState)
+		{
+		//	double probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj = getProbabilityWeWereInStateLGivenThatWeAreNowInSViaInputj(L, finalState, input, steadyStateOccupationVector);
+			
+			//  Compute the Entropy
+			//double entropy = probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj * NonInfiniteLog(probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj);
+			//entropiesOfStatesWhichLeadtoFinalState += entropy;
+		}
+		
+		return 0;
+	}
 	public double getEnergyDissipation(double probabilityOfZero)
 	{
 		//double boltzmannConstant = 1.3806488f*Math.pow(10, -23);
@@ -256,15 +624,50 @@ public class FSM {
 		
 	}
 	
+	//  Gets a list of states which lead to i with an input of j
+	private ArrayList<Integer> getStatesWhichLeadToiWithInputj(int i, int j)
+	{
+		//  Create the actual list which will hold the states which lead to i with input j
+		ArrayList<Integer> statesWhichLeadToiWithInputj = new ArrayList<Integer>();
+		
+		// Show where each state goes with an input of j
+		Matrix transitionTable = convertToMatrixConditionedOnInput(j);
+		
+		//  Loop through the column and add every row index to the list
+		for(int row = 0; row < transitionTable.getRowDimension(); row++)
+		{
+			if(transitionTable.get(row, i) > 0)
+			{
+				statesWhichLeadToiWithInputj.add(row);
+			}
+		}
+		
+		return statesWhichLeadToiWithInputj;
+		
+	}
+	
+	private double getProbabilityWeWereInStateLGivenThatWeAreNowInSViaInputj(int L, int S, int j, Matrix steadyStateOccupationVector)
+	{
+		 //  Get a list of the possible states which could have lead to S
+		 ArrayList<Integer> statesWhichLeadToSWithInputj = getStatesWhichLeadToiWithInputj(S, j);
+		 
+		//  Get the probability we were in state L
+		 double probabiltyWeWereInStateL = steadyStateOccupationVector.get(L, 0);
+		 
+		 double sumOfProbablitiesOfStatesLeadingToS = 0;
+		 for(int stateLeadingToS : statesWhichLeadToSWithInputj)
+		 {
+			 sumOfProbablitiesOfStatesLeadingToS += steadyStateOccupationVector.get(stateLeadingToS, 0);
+		 }
+
+		 //  Return the normalized probablity
+		 return probabiltyWeWereInStateL / sumOfProbablitiesOfStatesLeadingToS;
+		 
+	}
+	
 	private double getShannonEntropy(double probOfZero, boolean printErrors)
 	{
 		ArrayList<Matrix> sm = getEigenVectorsForEigenValueOne(probOfZero, printErrors);
-		
-		if(sm.size() == 0)
-		{
-			//  TODO:  Figure out why some decompositions are not working
-			return -1;
-		}
 		Matrix steadyStateOccupationVector;
 
 		steadyStateOccupationVector = sm.get(0);
@@ -274,49 +677,31 @@ public class FSM {
 		for(int j = 0; j < 2; j++)
 		{
 			//  Loop through the possible final states
-			double sum2 = 0;
+			double sumOfStates = 0;
 			for(int i = 0; i < this.states.size(); i++)
 			{
-				
-				Matrix transitionTable = convertToMatrixConditionedOnInput(j);
-				
-				//  Get the sum of a column in the transition table to use for normalization.  Given that states 2, and 3 can go
-				//  to state 5, we can sum the 5'th column to get the sum of the conditional probabilities:  P(last state = 2 | current state = 5)P(5)
-				//  + P(last state = 3 | current state = 5)P(5) = P(last state = 2 ^ current state = 5) + P(last state = 3 ^ current state = 5)P(5) = 1
-				//  Because we know the sum must add to 1 from the law of total probability, we normalize the column.
-				
-				//  Find the sum of the ith column
-				double sum = 0;
-				for(int row = 0; row < transitionTable.getRowDimension(); row++)
+				double entropiesOfStatesWhichLeadtoi = 0;
+				//  Loop over states which lead to i
+				ArrayList<Integer> statesWhichLeadToi = getStatesWhichLeadToiWithInputj(i, j);
+				for(int L : statesWhichLeadToi)
 				{
-					sum += transitionTable.get(row, i);
-				}
-				
-				//  Normalize the elements in the ith column and compute the entropy term Hj(S(n-1)|S(n))
-				double internalSum = 0;
-				for(int row = 0; row < transitionTable.getRowDimension(); row++)
-				{
-					if(sum > 0)
-					{
-						double probabilityRowGoesToi =  transitionTable.get(row, i) / sum;
-						internalSum = internalSum + probabilityRowGoesToi * NonInfiniteLog(probabilityRowGoesToi);
-					}
+					double probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj = getProbabilityWeWereInStateLGivenThatWeAreNowInSViaInputj(L, i, j, steadyStateOccupationVector);
 					
+					//  Compute the Entropy
+					double entropy = probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj * NonInfiniteLog(probabilityWeWereInStateLGivenThatWeAreNowInSViaInputj);
+					entropiesOfStatesWhichLeadtoi += entropy;
 				}
 				
-				//  Multiple P(Last state = i)
-				double probbilityLastStateIsi = steadyStateOccupationVector.get(i, 0);
-				sum2 = sum2 + internalSum*probbilityLastStateIsi;
-
+				sumOfStates += entropiesOfStatesWhichLeadtoi;
 			}
-			sum2 = sum2*-1*probOfZero;
-			informationLoss += sum2;
+			informationLoss += sumOfStates*-1*probOfZero;
 		}
 		
 		return informationLoss;
 		
 	}
 	
+
 	
 	
 	private double NonInfiniteLog(double input)
@@ -341,13 +726,13 @@ public class FSM {
 		{
 			if(states.get(i).nextStateArray[0] == states.get(i).nextStateArray[1])
 			{
-				fsmArray[i][states.get(i).nextStateArray[0]] = probOfZero*2;
+				fsmArray[i][states.get(i).nextStateArray[0]] = 1;
 				
 			}
 			else
 			{
 				fsmArray[i][states.get(i).nextStateArray[0]] = probOfZero;
-				fsmArray[i][states.get(i).nextStateArray[1]] = probOfZero;
+				fsmArray[i][states.get(i).nextStateArray[1]] = 1 - probOfZero;
 				
 			}
 		}
@@ -409,7 +794,7 @@ public class FSM {
 				}
 				catch(Exception ex)
 				{
-					
+					System.out.println("Eigen Vector Error!");
 					int y = 0;
 				}
 

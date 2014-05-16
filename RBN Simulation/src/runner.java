@@ -4,6 +4,11 @@ import java.util.Random;
 
 import javax.swing.JFrame;
 
+import org.leores.plot.DataTableSet;
+import org.leores.plot.JGnuplot;
+import org.leores.plot.JGnuplot.Plot;
+
+import Jama.Matrix;
 import edu.uci.ics.jung.algorithms.layout.CircleLayout;
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
@@ -31,11 +36,48 @@ public class runner {
 		
 //		//  Create the CustomRandom Generator
 		CustomRandom randomGenerator = new CustomRandom();
+		
+		//  Loop through and create RBNs one at a time
+//		int totalSuccess = 0;
+//		int totalTest = 1000;
+//		for(int i = 0; i < totalTest; i++)
+//		{
+//			ShannonSource ss = new ShannonSource(1000, 0.5f);
+//			RBN rbn = new RBN(1, 4, 2, randomGenerator);
+//			FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+//			//fsm.showVisualizationWithAllAtractors();
+//			//ArrayList<ArrayList<Integer>> atrList = fsm.getAllAtractors();
+//			//System.out.println("Attractors: " + atrList.size());
+//			String inputString = ss.getCurrentString();
+//			int finalState = fsm.runInputString(0, inputString);
+//			Attractor atr = fsm.getAttractor_ViaAlgorithm(finalState);
+//			if(!(atr == null))
+//			{
+//				totalSuccess++;
+//				fsm.showFSMVisualizationWithAttractor(atr);
+//				System.out.println(i + ": Success\n");
+//				int m = 0;
+//			}
+//			else
+//			{
+//				System.out.println(i + ": Fail\n");
+//			}
+//			
+//		}
+//		System.out.println("Success Rate: " + (double)totalSuccess / (double)totalTest);
 //		
 //		//  Create the irreducible RBN generator
 		IrreducibleRBNManager irm = new IrreducibleRBNManager(pathToIrreducible, pathToWorkspace, randomGenerator);
 //		
-		irm.BatchIrreducibleExport(4, 7, 5, 7, 1, 3, 50);
+		JGnuplot jg = new JGnuplot();
+		Plot plot0 = new Plot("asdf");
+		double[] x = { 1, 2, 3, 4, 5 }, y1 = { 2, 4, 6, 8, 10 }, y2 = { 3, 6, 9, 12, 15 };
+		org.leores.util.DataTableSet dts = plot0.addNewDataTableSet("Simple plot");
+		dts.addNewDataTable("2x", x, y1);
+		dts.addNewDataTable("3x", x, y2);
+		jg.execute(plot0, jg.plot2d);
+		
+		//irm.BatchIrreducibleExport(1, 6, 6, 6, 1, 3, 50);
 //		
 //		System.out.println("Done");
 		
@@ -49,26 +91,29 @@ public class runner {
 		
 		//TestSuite.runTests();
 		
-		//  More general way to see how many irreducible networks!
 		
 		//  Create the sweeping variables
 		ArrayList<SweepingDiscreteVariable> sweepingVariables = new ArrayList<SweepingDiscreteVariable>();
 		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.K_avg, 1, 3, 1, 0, true)); //  Test each k first
-		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.N, 3, 5, 1, 0, true)); //  Test the N=5 networks
-		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.Tau, 1, 1, 1, 0, true)); //  Test with tau=10
-		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.IrreducibleFile_Averager, 50, 50, 1, 0, true));
+		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.L, 3, 3, 1, 0, true));  //  Then sweep through the values of L
+		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.N, 5, 5, 1, 0, true)); //  Test the N=5 networks
+		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.Tau, 2, 2, 1, 0, true)); //  Test with tau=1
+		sweepingVariables.add(new SweepingDiscreteVariable(DiscreteVariableType.Averager, 100, 100, 1, 0, true));
 		
 		//  Create the constant variables (L=2)
 		ArrayList<ConstantDiscreteVariable> constantVariables = new ArrayList<ConstantDiscreteVariable>();
-		constantVariables.add(new ConstantDiscreteVariable(DiscreteVariableType.L, 2));
+		constantVariables.add(new ConstantDiscreteVariable(DiscreteVariableType.InputLength, 5));
 		
-		DependentVariableType dependentVariableType = DependentVariableType.computationalCapability;
-		String csvFilePath = "/Users/willimac/Documents/College/Senior!/DH Research/EnergyDissipation.csv";
+		DependentVariableType dependentVariableType = DependentVariableType.attractorCount;
+		String csvFilePath = "/Users/willimac/Documents/College/Senior!/DH Research/attractorCount.csv";
+		//String csvFilePath = "/Users/willimac/Documents/College/Senior!/DH Research/NonIrreducibleTest.csv";
+		
 		
 		//randomGenerator.writeHistogramToCSV("/Users/willimac/Documents/College/Senior!/DH Research/histogram.csv", 100, 1000000000);
 		
-		//BatchSimulator batchSim = new BatchSimulator(sweepingVariables,constantVariables ,dependentVariableType ,csvFilePath ,randomGenerator, irm);
-		//batchSim.generateCSV();
+		BatchSimulator batchSim = new BatchSimulator(sweepingVariables,constantVariables ,dependentVariableType ,csvFilePath ,randomGenerator, irm);
+		//batchSim.GenerateCCMap();
+		batchSim.generateCSV();
 		
 		
 		

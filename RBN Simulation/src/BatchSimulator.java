@@ -11,10 +11,12 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Random;
 
+import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
+
 import edu.uci.ics.jung.graph.util.Context;
 
 
-//  This class is used to simulate many different variables against eachother
+//  This class is used to simulate many different variables against each other
 //  Since this is strictly the RBN batch simulator, it requires N, k_avg, and L as a minimum.
 public class BatchSimulator 
 {
@@ -40,7 +42,7 @@ public class BatchSimulator
 		this.sweepingVariables = sweepingVariables;
 		this.constantVariables = constantVariables;
 		this.dependentVariableType = dependentVariableType;
-		variableValues = new int[7];
+		variableValues = new int[DiscreteVariableType.values().length];
 		this.csvFilePath = csvFilePath;
 		this.randomGenerator = randomGenerator;
 		statMachine = new StatisticMachine();
@@ -107,9 +109,10 @@ private void loopThroughVariables(ArrayList<SweepingDiscreteVariable> sweepingVa
 					//  Setup required parameters
 					int N = this.variableValues[DiscreteVariableType.N.id];
 					int K_avg = this.variableValues[DiscreteVariableType.K_avg.id];
-					int L = this.variableValues[DiscreteVariableType.L.id];
-					
+					//TODO: Fix this ratio stuff - int L = this.variableValues[DiscreteVariableType.L.id];
+					//int L = (int)((float)N * 0.4f); //  This was used for my poster test, figure 5
 					//  Run the simulator
+					int L = this.variableValues[DiscreteVariableType.L.id];
 					RBN rbn = new RBN(K_avg, N, L, randomGenerator);
 					
 					//  Calculate the simulation result
@@ -120,7 +123,6 @@ private void loopThroughVariables(ArrayList<SweepingDiscreteVariable> sweepingVa
 
 
 			}
-			
 			else if(variable.type == DiscreteVariableType.IrreducibleFile_Averager)
 			{
 				String pathToIrreducible = " /Users/willimac/Documents/College/Senior!/DH Research/Test Files/IrreducibleRBNs";
@@ -139,6 +141,9 @@ private void loopThroughVariables(ArrayList<SweepingDiscreteVariable> sweepingVa
 					//  Run the simulator
 					RBN rbn = rbnList.get(j);
 					
+					RBN_FSM_Helper.showRBNVisualization(rbn);
+					FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+					fsm.showFSMVisualization();
 					performSimulation(dependentVariableType, rbn);
 					
 					
@@ -204,10 +209,42 @@ private void performSimulation(DependentVariableType dependentVariableType, RBN 
 				statMachine.add(0);
 			}
 			return;
+			
+		case attractorCount:
+			FSM fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+			ArrayList<Attractor> atrList = fsm.getAllAtractors_ViaAlgorithm();
+			if(!(atrList == null))
+			{
+				statMachine.add(atrList.size());
+			}
+			else
+			{
+				statMachine.add(0);
+			}
+			return;
+		case inAttractorProbabilityAfterInput:
+			fsm = RBN_FSM_Helper.generateFSMFromRBN(rbn);
+			ArrayList<Attractor> atrList1 = fsm.getAllAtractors_ViaAlgorithm();
+			int inputLength = this.variableValues[DiscreteVariableType.FSA_InputLength.id];
+			int initialState = this.variableValues[DiscreteVariableType.FSA_InitialState.id];
+			ShannonSource ss = new ShannonSource(inputLength, 0.5f);
+			
+			boolean inAttractor = fsm.isStateInAttractor(fsm.runInputString(initialState, ss.getCurrentString()));
+			if(inAttractor)
+			{
+				statMachine.add(1);
+			}
+			else
+			{
+				statMachine.add(0);
+			}
+			return;
 		case computationalCapability:
 			
 			int tau = this.variableValues[DiscreteVariableType.Tau.id];
-			ShannonSource ss = new ShannonSource(3, 0.5f);
+			inputLength = this.variableValues[DiscreteVariableType.InputLength.id];
+			//  TODO:  Add ability to skew the input probabilities
+			ss = new ShannonSource(inputLength, 0.5f);
 			int[] inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
 			float computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
 			statMachine.add(computationalCapability);
@@ -215,7 +252,16 @@ private void performSimulation(DependentVariableType dependentVariableType, RBN 
 		case dissipationBound:
 			if(RBN_FSM_Helper.generateFSMFromRBN(rbn).isIrreducibleViaAlgorithm())
 			{
-				statMachine.add(RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(0.5f));
+				double dissipation = RBN_FSM_Helper.generateFSMFromRBN(rbn).getEnergyDissipation(0.5f);
+				if(Double.isNaN(dissipation) | Double.isInfinite(dissipation))
+				{
+					System.out.println("Invalid Dissipation Bound!");
+					return;
+				}
+				else
+				{
+					statMachine.add(dissipation);
+				}
 				return;
 			}
 		case energyPerUnitCapability:
@@ -251,16 +297,52 @@ public void writeIrreducibleToHeatmap()
 	// TODO
 }
 
+
+//  Generates a computational capability map for a specified K value ... 
+public void GenerateCCMap()
+{
+	int K_avg = 2;
+	int N = 500;
+	int L_Max = 500;
+	float chanceOf1 = 0.5f;
+	int tau_Max = 8;
+	int L_SkipValue = 100;
+	int averagingTotal = 50;
+	ShannonSource ss = new ShannonSource(10, chanceOf1);
+	CustomRandom randomGenerator = new CustomRandom();
+
+	ArrayList<ArrayList<DataPoint3D>> dataPoints = new ArrayList<ArrayList<DataPoint3D>>(); //  Two dimensional, the inner dimension is the x-axis data
+	
+	for (int L = 0; L <= L_Max; L += L_SkipValue)
+	{
+		ArrayList<DataPoint3D> xData = new ArrayList<DataPoint3D>();
+		for(int tau = 0; tau <= tau_Max; tau++)
+		{
+			float ccTotal = 0;
+			for(int i = 0; i < averagingTotal; i++)
+			{
+
+				RBN rbn =  new RBN(K_avg, N, L, randomGenerator);
+				int[] inputIntArray = MathHelper.convertStringToIntArray(ss.getCurrentString());
+				float computationalCapability = RBN.calculateComputationalCapability(rbn, inputIntArray, tau);
+				ccTotal += computationalCapability;
+			}
+			
+			DataPoint3D dp3d = new DataPoint3D(tau, L, ccTotal / (float)50);
+			xData.add(dp3d);
+		}
+		dataPoints.add(xData);
+	}
+	
+	
+	
+	ChartGenerator.generateHeatMapFromDataPoint3DList(dataPoints, 0.25f); //  Subtract 1 because the loop added one during the last iteration
 }
 
-//  Enum for the variableValues array
-
-
-
-
+}
 
 enum DependentVariableType
 {
-	irreducibilityProbability, computationalCapability, dissipationBound, energyPerUnitCapability
+	irreducibilityProbability, computationalCapability, dissipationBound, energyPerUnitCapability, inAttractorProbabilityAfterInput, attractorCount
 
 }

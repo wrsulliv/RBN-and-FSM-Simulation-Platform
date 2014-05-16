@@ -131,7 +131,7 @@ public class BatchSimulatorGui {
 						ex.printStackTrace();
 					}*/
 				
-				ChartGenerator.generateHeatMapFromDataPoint3DList(dataPoints, tau - 1, L - 1, 1); //  Subtract 1 because the loop added one during the last iteration
+				//ChartGenerator.generateHeatMapFromDataPoint3DList(dataPoints, tau - 1, L - 1, 1); //  Subtract 1 because the loop added one during the last iteration
 			}
 		});
 		btnNewButton.setBounds(10, 106, 168, 29);

@@ -10,33 +10,35 @@ import javax.imageio.ImageIO;
 public class ChartGenerator {
 
 	//  The datapoints must be from least x/y to greatest x/y
-	public static BufferedImage generateHeatMapFromDataPoint3DList(ArrayList<DataPoint3D> dataPointList, int xRange, int yRange, int heatRange)
+	public static BufferedImage generateHeatMapFromDataPoint3DList(ArrayList<ArrayList<DataPoint3D>> dataPoints, float heatRange)
 	{
 		
 		//  Create the actual image object.  The number of rows is 1 more than the number of inputs because of the initial state.
-		BufferedImage bf = new BufferedImage(xRange, yRange, BufferedImage.TYPE_INT_RGB);
+		BufferedImage bf = new BufferedImage(dataPoints.get(0).size(), dataPoints.size(), BufferedImage.TYPE_INT_RGB);
 		
 		//  Loop through each input string item and determine the next state.
-		for(int i = 0; i < dataPointList.size(); i++)
+		for(int y = 0; y < dataPoints.size(); y++)
 		{
-			
+			for(int x = 0; x < dataPoints.get(0).size(); x++)
+			{
 			//  TODO:  Prove that this is true.
 			//  As of right now I believe computational capability can be lower than 0... So, make sure it doesn't go below zero..
 			Color heatColor;	
-			if ((dataPointList.get(i).heatPoint >= 0) && (dataPointList.get(i).heatPoint <= 0.2f)) 
+			float heatPoint = dataPoints.get(y).get(x).heatPoint;
+			if ((heatPoint >= 0) && (heatPoint <= heatRange)) 
 				{
-					 heatColor = rgbFull(0, 0.2f, dataPointList.get(i).heatPoint);
+					 heatColor = rgbFull(0, heatRange, heatPoint);
 				}
-				else if(dataPointList.get(i).heatPoint > 0.2f)
+				else if(heatPoint > heatRange)
 				{
-					heatColor = rgbFull(0, 0.2f, .2f);
+					heatColor = rgbFull(0, heatRange, heatRange);
 				}
 				else
 				{
-					heatColor = rgbFull(0, 0.2f, 0);
+					heatColor = rgbFull(0, heatRange, 0);
 				}
-				bf.setRGB(dataPointList.get(i).x-1, yRange - (dataPointList.get(i).y), heatColor.getRGB()); 
-
+				bf.setRGB(x , y , heatColor.getRGB()); 
+			}
 			
 		}
 		
